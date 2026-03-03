@@ -166,7 +166,9 @@ const ParticipantsList = ({ participants, contributions, onUpdate }: { participa
     setUploading(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
+      if (!fileExt) throw new Error('Arquivo sem extensão');
+      
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -551,11 +553,17 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
   const [editing, setEditing] = useState<Draw | null>(null);
 
   const DRAW_COLORS = [
-    'text-amber-500',
-    'text-emerald-500',
-    'text-blue-500',
-    'text-violet-500'
+    { text: 'text-amber-500', bg: 'bg-amber-500', border: 'border-amber-500', lightBorder: 'border-amber-500/50' },
+    { text: 'text-emerald-500', bg: 'bg-emerald-500', border: 'border-emerald-500', lightBorder: 'border-emerald-500/50' },
+    { text: 'text-blue-500', bg: 'bg-blue-500', border: 'border-blue-500', lightBorder: 'border-blue-500/50' },
+    { text: 'text-violet-500', bg: 'bg-violet-500', border: 'border-violet-500', lightBorder: 'border-violet-500/50' }
   ];
+
+  const formatPrize = (value: number) => {
+    if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`;
+    if (value >= 1000000) return `${(value / 1000000).toFixed(0)}M`;
+    return value.toLocaleString('pt-BR');
+  };
 
   const handleSave = async () => {
     if (!editing) return;
@@ -610,10 +618,10 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
           const drawGoal = totalPotentialYearly * (d.allocation_percentage / 100);
           const drawCollected = (stats?.totalCollected || 0) * (d.allocation_percentage / 100);
           const progress = drawGoal > 0 ? (drawCollected / drawGoal) * 100 : 0;
-          const colorClass = DRAW_COLORS[i % DRAW_COLORS.length];
+          const color = DRAW_COLORS[i % DRAW_COLORS.length];
 
           return (
-            <div key={d.id} className={`card relative overflow-hidden group border-2 ${colorClass.replace('text-', 'border-').replace('500', '500/30')}`}>
+            <div key={d.id} className={`card relative overflow-hidden group border-2 ${color.lightBorder}`}>
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{d.name}</h3>
@@ -631,7 +639,7 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
               </div>
 
               <div className="flex items-center gap-6 mb-8">
-                <CircularProgress percentage={progress} colorClass={colorClass} />
+                <CircularProgress percentage={progress} colorClass={color.text} />
                 <div>
                   <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">
                     {d.realized ? 'Prêmio Recebido' : 'Prêmio Estimado'}
@@ -640,8 +648,8 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
                     <span className="text-xl font-semibold">R$</span>
                     <span className="text-3xl font-bold tracking-tight">
                       {d.realized 
-                        ? (d.prize >= 1000000 ? `${(d.prize / 1000000).toFixed(0)}M` : d.prize.toLocaleString('pt-BR'))
-                        : (d.estimated_prize ? (d.estimated_prize >= 1000000 ? `${(d.estimated_prize / 1000000).toFixed(0)}M` : d.estimated_prize.toLocaleString('pt-BR')) : '—')
+                        ? formatPrize(d.prize)
+                        : (d.estimated_prize ? formatPrize(d.estimated_prize) : '—')
                       }
                     </span>
                   </div>
@@ -660,7 +668,7 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
                   <motion.div 
                     initial={{ width: 0 }}
                     animate={{ width: `${Math.min(progress, 100)}%` }}
-                    className={`h-full rounded-full ${colorClass.replace('text-', 'bg-')}`}
+                    className={`h-full rounded-full ${color.bg}`}
                   />
                 </div>
               </div>
@@ -896,7 +904,24 @@ const GamesList = () => {
       prizeRules: 'Ganha prêmio quem acertar 4, 5 ou 6 números.',
       mainPrizeAcertos: 6,
       desc: 'O jogador escolhe de 6 a 20 números entre 1 e 60. Os sorteios acontecem às quartas e sábados. É a modalidade que tradicionalmente paga os maiores prêmios.',
-      prob: '1 em 50.063.860 (6 números com 6 apostas)',
+      prob: '1 em 50.063.860 (6 números)',
+      probabilities: [
+        { qty: '6', prob: '50.063.860' },
+        { qty: '7', prob: '7.151.980' },
+        { qty: '8', prob: '1.787.995' },
+        { qty: '9', prob: '595.998' },
+        { qty: '10', prob: '238.399' },
+        { qty: '11', prob: '108.363' },
+        { qty: '12', prob: '54.182' },
+        { qty: '13', prob: '29.175' },
+        { qty: '14', prob: '16.671' },
+        { qty: '15', prob: '10.003' },
+        { qty: '16', prob: '6.252' },
+        { qty: '17', prob: '4.045' },
+        { qty: '18', prob: '2.697' },
+        { qty: '19', prob: '1.845' },
+        { qty: '20', prob: '1.292' },
+      ],
       color: 'bg-emerald-500'
     },
     dupla: {
@@ -1006,6 +1031,30 @@ const GamesList = () => {
                 <p className="text-sm text-zinc-500 mt-1">Chances de ganhar o prêmio principal com a aposta mínima.</p>
               </div>
             </section>
+
+            {'probabilities' in active && (
+              <section>
+                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em] mb-4">Probabilidades por Números Jogados</h4>
+                <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-zinc-100 dark:border-zinc-800 overflow-hidden">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="bg-zinc-100 dark:bg-zinc-800/50 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                        <th className="px-4 py-3">Números Jogados</th>
+                        <th className="px-4 py-3 text-right">Probabilidade (1 em)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                      {(active as any).probabilities.map((p: any, i: number) => (
+                        <tr key={i} className="hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30 transition-colors">
+                          <td className="px-4 py-3 font-medium">{p.qty}</td>
+                          <td className="px-4 py-3 font-bold text-right text-zinc-900 dark:text-zinc-50">{p.prob}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
           </div>
 
           <div className="space-y-6">
