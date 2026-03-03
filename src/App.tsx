@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from './supabase';
 import { 
   LayoutDashboard, 
   Users, 
@@ -516,8 +517,9 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
 export default function App() {
   const [view, setView] = useState<'dashboard' | 'participants' | 'contributions' | 'draws'>('dashboard');
   const [darkMode, setDarkMode] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
+  const [user, setUser] = useState<any>(null);
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [loading, setLoading] = useState(true);
   
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -525,17 +527,36 @@ export default function App() {
   const [draws, setDraws] = useState<Draw[]>([]);
 
   const fetchData = async () => {
-    const [sRes, pRes, cRes, dRes] = await Promise.all([
-      fetch('/api/stats'),
-      fetch('/api/participants'),
-      fetch('/api/contributions'),
-      fetch('/api/draws')
-    ]);
-    setStats(await sRes.json());
-    setParticipants(await pRes.json());
-    setContributions(await cRes.json());
-    setDraws(await dRes.json());
+    try {
+      const [sRes, pRes, cRes, dRes] = await Promise.all([
+        fetch('/api/stats'),
+        fetch('/api/participants'),
+        fetch('/api/contributions'),
+        fetch('/api/draws')
+      ]);
+      setStats(await sRes.json());
+      setParticipants(await pRes.json());
+      setContributions(await cRes.json());
+      setDraws(await dRes.json());
+    } catch (error) {
+      console.error("Erro ao buscar dados:", error);
+    }
   };
+
+  useEffect(() => {
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (user) fetchData();
@@ -551,24 +572,35 @@ export default function App() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(loginForm)
+    const { error } = await supabase.auth.signInWithPassword({
+      email: loginForm.email,
+      password: loginForm.password,
     });
-    if (res.ok) {
-      setUser(await res.json());
-    } else {
-      alert('Login inválido');
+    
+    if (error) {
+      alert(`Erro no login: ${error.message}`);
     }
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-900 dark:border-zinc-50"></div>
+      </div>
+    );
+  }
+
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-50 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 p-4">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="card w-full max-w-sm space-y-8">
           <div className="text-center">
-            <div className="w-16 h-16 bg-zinc-900 text-white rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Trophy size={32} />
             </div>
             <h1 className="text-2xl font-bold">LotoGroup</h1>
@@ -577,25 +609,30 @@ export default function App() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-bold text-zinc-500 mb-1">Usuário</label>
+              <label className="block text-sm font-bold text-zinc-500 mb-1">E-mail</label>
               <input 
-                type="text" 
-                className="w-full bg-zinc-50 border-none rounded-xl px-4 py-3"
-                value={loginForm.username}
-                onChange={(e) => setLoginForm({...loginForm, username: e.target.value})}
+                type="email" 
+                className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-3"
+                value={loginForm.email}
+                onChange={(e) => setLoginForm({...loginForm, email: e.target.value})}
+                required
               />
             </div>
             <div>
               <label className="block text-sm font-bold text-zinc-500 mb-1">Senha</label>
               <input 
                 type="password" 
-                className="w-full bg-zinc-50 border-none rounded-xl px-4 py-3"
+                className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-3"
                 value={loginForm.password}
                 onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
+                required
               />
             </div>
-            <button type="submit" className="w-full btn-primary py-3">Entrar</button>
+            <button type="submit" className="w-full btn-primary py-3">Entrar com Supabase</button>
           </form>
+          <p className="text-xs text-center text-zinc-400">
+            Crie seu usuário no painel do Supabase em Authentication &gt; Users.
+          </p>
         </motion.div>
       </div>
     );
@@ -630,7 +667,7 @@ export default function App() {
               <span className="font-medium">{darkMode ? 'Modo Claro' : 'Modo Escuro'}</span>
             </button>
             <button 
-              onClick={() => setUser(null)}
+              onClick={handleLogout}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all"
             >
               <LogOut size={20} />

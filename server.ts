@@ -21,14 +21,7 @@ async function startServer() {
 
   // Auth (Simplified for demo - in production use Supabase Auth)
   app.post("/api/login", async (req, res) => {
-    const { username, password } = req.body;
-    // For demo purposes, we'll still use a simple check or you can query a 'users' table in Supabase
-    // Ideally, use supabase.auth.signInWithPassword
-    if (username === 'admin' && password === 'admin123') {
-      res.json({ id: 1, username: 'admin', role: 'admin' });
-    } else {
-      res.status(401).json({ error: "Credenciais inválidas" });
-    }
+    res.status(410).json({ error: "Este endpoint foi desativado. Use o Supabase Auth no frontend." });
   });
 
   // Participants
