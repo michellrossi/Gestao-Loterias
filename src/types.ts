@@ -22,6 +22,7 @@ export interface Draw {
   realized: number;
   result: string | null;
   prize: number;
+  estimated_prize?: number;
   allocation_percentage: number;
 }
 

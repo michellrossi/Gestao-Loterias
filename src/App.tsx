@@ -51,10 +51,10 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }: { icon: any, label:
 );
 
 const StatCard = ({ label, value, icon: Icon, trend, colorClass }: { label: string, value: string, icon: any, trend?: string, colorClass?: string }) => (
-  <div className={`card flex flex-col gap-2 border-t-4 ${colorClass || 'border-zinc-900 dark:border-zinc-50'}`}>
+  <div className={`card flex flex-col gap-2 border-2 ${colorClass || 'border-zinc-900 dark:border-zinc-50'}`}>
     <div className="flex justify-between items-start">
-      <div className={`p-2 rounded-lg ${colorClass ? colorClass.replace('border-', 'bg-').replace('900', '100').replace('50', '800') : 'bg-zinc-100 dark:bg-zinc-800'}`}>
-        <Icon size={20} className={colorClass ? colorClass.replace('border-', 'text-').replace('50', '400') : 'text-zinc-600 dark:text-zinc-400'} />
+      <div className={`p-2 rounded-lg ${colorClass ? colorClass.replace('border-', 'bg-').replace('500', '500/10') : 'bg-zinc-100 dark:bg-zinc-800'}`}>
+        <Icon size={20} className={colorClass ? colorClass.replace('border-', 'text-') : 'text-zinc-600 dark:text-zinc-400'} />
       </div>
       {trend && (
         <span className="text-xs font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded-full">
@@ -63,7 +63,7 @@ const StatCard = ({ label, value, icon: Icon, trend, colorClass }: { label: stri
       )}
     </div>
     <span className="text-sm text-zinc-500 font-medium">{label}</span>
-    <span className="text-2xl font-bold tracking-tight">{value}</span>
+    <span className="text-2xl font-semibold tracking-tight">{value}</span>
   </div>
 );
 
@@ -89,8 +89,8 @@ const Dashboard = ({ stats, draws }: { stats: DashboardStats | null, draws: Draw
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="card">
-          <h3 className="text-lg font-bold mb-6">Distribuição por Sorteio</h3>
+        <div className="card border-2 border-amber-500/20">
+          <h3 className="text-lg font-semibold mb-6">Distribuição por Sorteio</h3>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -118,29 +118,29 @@ const Dashboard = ({ stats, draws }: { stats: DashboardStats | null, draws: Draw
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
                   <span className="text-zinc-500">{d.name}</span>
                 </div>
-                <span className="font-bold">{d.value.toFixed(1)}%</span>
+                <span className="font-semibold">{d.value.toFixed(1)}%</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="card">
-          <h3 className="text-lg font-bold mb-6">Próximo Concurso</h3>
+        <div className="card border-2 border-emerald-500/20">
+          <h3 className="text-lg font-semibold mb-6">Próximo Concurso</h3>
           {stats.nextDraw ? (
             <div className="space-y-6">
               <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-100 dark:border-zinc-800">
-                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Sorteio</span>
-                <h4 className="text-xl font-bold">{stats.nextDraw.name}</h4>
+                <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Sorteio</span>
+                <h4 className="text-xl font-semibold">{stats.nextDraw.name}</h4>
                 <p className="text-zinc-500 mt-1">Data: {new Date(stats.nextDraw.date).toLocaleDateString('pt-BR')}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900 rounded-xl">
-                  <span className="text-xs opacity-70 uppercase font-bold">Aporte Estimado</span>
-                  <p className="text-2xl font-bold">R$ {(stats.cashAvailable * (stats.nextDraw.allocation_percentage / 100)).toLocaleString('pt-BR')}</p>
+                  <span className="text-xs opacity-70 uppercase font-semibold">Aporte Estimado</span>
+                  <p className="text-2xl font-semibold">R$ {(stats.cashAvailable * (stats.nextDraw.allocation_percentage / 100)).toLocaleString('pt-BR')}</p>
                 </div>
                 <div className="p-4 bg-zinc-100 dark:bg-zinc-800 rounded-xl">
-                  <span className="text-xs text-zinc-500 uppercase font-bold">Percentual Atual</span>
-                  <p className="text-2xl font-bold">{stats.nextDraw.allocation_percentage.toFixed(1)}%</p>
+                  <span className="text-xs text-zinc-500 uppercase font-semibold">Percentual Atual</span>
+                  <p className="text-2xl font-semibold">{stats.nextDraw.allocation_percentage.toFixed(1)}%</p>
                 </div>
               </div>
             </div>
@@ -223,7 +223,7 @@ const ParticipantsList = ({ participants, contributions, onUpdate }: { participa
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Participantes</h2>
+        <h2 className="text-2xl font-semibold">Participantes</h2>
         <button onClick={() => { setIsAdding(true); setEditing(null); setForm({ name: '', active: true, avatar_url: '' }); }} className="btn-primary flex items-center gap-2">
           <Users size={18} />
           Novo Participante
@@ -232,7 +232,7 @@ const ParticipantsList = ({ participants, contributions, onUpdate }: { participa
 
       {(isAdding || editing) && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="card space-y-4">
-          <h3 className="font-bold">{editing ? 'Editar Participante' : 'Novo Participante'}</h3>
+          <h3 className="font-semibold">{editing ? 'Editar Participante' : 'Novo Participante'}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input 
               type="text" 
@@ -290,7 +290,7 @@ const ParticipantsList = ({ participants, contributions, onUpdate }: { participa
                   <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-zinc-900 ${status.color}`} />
                 </div>
                 <div>
-                  <h4 className="font-bold text-zinc-900 dark:text-zinc-50 leading-tight">{p.name}</h4>
+                  <h4 className="font-semibold text-zinc-900 dark:text-zinc-50 leading-tight">{p.name}</h4>
                   <div className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider">
                     <span className={status.color.replace('bg-', 'text-')}>{status.label}</span>
                     <span className="text-zinc-300 dark:text-zinc-700">•</span>
@@ -300,7 +300,7 @@ const ParticipantsList = ({ participants, contributions, onUpdate }: { participa
               </div>
 
               <div className="flex flex-col items-end gap-1">
-                <span className="text-lg font-bold">R$ {totalPaid.toLocaleString('pt-BR')}</span>
+                <span className="text-lg font-semibold">R$ {totalPaid.toLocaleString('pt-BR')}</span>
                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button onClick={() => startEdit(p)} className="p-1 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
                     <Edit size={14} />
@@ -366,7 +366,7 @@ const ContributionsList = ({ participants, contributions, onUpdate }: { particip
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-black tracking-tight mb-1">Controle de Aportes</h2>
+        <h2 className="text-3xl font-bold tracking-tight mb-1">Controle de Aportes</h2>
         <p className="text-zinc-500 font-medium">Clique no ícone para alternar o status de pagamento (R$ 50,00/mês)</p>
       </div>
 
@@ -375,11 +375,11 @@ const ContributionsList = ({ participants, contributions, onUpdate }: { particip
           <table className="w-full border-collapse min-w-[800px]">
             <thead>
               <tr className="border-b border-zinc-100 dark:border-zinc-800">
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 border-r border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 sticky left-0 z-10">
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400 border-r border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 sticky left-0 z-10">
                   Participante
                 </th>
                 {months.map(m => (
-                  <th key={m.id} className="px-2 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 text-center">
+                  <th key={m.id} className="px-2 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400 text-center">
                     {m.label}
                   </th>
                 ))}
@@ -388,7 +388,7 @@ const ContributionsList = ({ participants, contributions, onUpdate }: { particip
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {participants.filter(p => p.active).map(p => (
                 <tr key={p.id} className="group hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50 transition-colors">
-                  <td className="px-6 py-4 font-bold text-zinc-900 dark:text-zinc-100 border-r border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 sticky left-0 z-10">
+                  <td className="px-6 py-4 font-semibold text-zinc-900 dark:text-zinc-100 border-r border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 sticky left-0 z-10">
                     {p.name}
                   </td>
                   {months.map((m, idx) => {
@@ -414,7 +414,7 @@ const ContributionsList = ({ participants, contributions, onUpdate }: { particip
                           ) : (isPast || isCurrent) ? (
                             <AlertTriangle size={18} strokeWidth={3} />
                           ) : (
-                            <span className="font-black opacity-30">—</span>
+                            <span className="font-bold opacity-30">—</span>
                           )}
                         </button>
                       </td>
@@ -425,13 +425,13 @@ const ContributionsList = ({ participants, contributions, onUpdate }: { particip
             </tbody>
             <tfoot>
               <tr className="bg-zinc-50/50 dark:bg-zinc-900/50 border-t-2 border-zinc-200 dark:border-zinc-800">
-                <td className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100 border-r border-zinc-100 dark:border-zinc-800 sticky left-0 z-10 bg-zinc-50 dark:bg-zinc-900">
+                <td className="px-6 py-6 text-[10px] font-bold uppercase tracking-widest text-zinc-900 dark:text-zinc-100 border-r border-zinc-100 dark:border-zinc-800 sticky left-0 z-10 bg-zinc-50 dark:bg-zinc-900">
                   Arrecadação
                 </td>
                 {months.map(m => {
                   const total = getMonthTotal(m.id);
                   return (
-                    <td key={m.id} className="px-2 py-6 text-center font-black text-sm">
+                    <td key={m.id} className="px-2 py-6 text-center font-bold text-sm">
                       {total > 0 ? (
                         <span className="text-zinc-900 dark:text-zinc-100">{total}</span>
                       ) : (
@@ -503,6 +503,7 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
         realized: editing.realized === 1,
         result: editing.result,
         prize: editing.prize,
+        estimated_prize: editing.estimated_prize,
         allocation_percentage: editing.allocation_percentage
       })
       .eq('id', editing.id);
@@ -538,7 +539,7 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Concursos Especiais</h2>
+      <h2 className="text-2xl font-semibold">Concursos Especiais</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {draws.map((d, i) => {
@@ -549,15 +550,15 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
           const colorClass = DRAW_COLORS[i % DRAW_COLORS.length];
 
           return (
-            <div key={d.id} className="card relative overflow-hidden group">
+            <div key={d.id} className={`card relative overflow-hidden group border-2 ${colorClass.replace('text-', 'border-').replace('500', '500/30')}`}>
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">{d.name}</h3>
+                  <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{d.name}</h3>
                   <p className="text-sm text-zinc-400 font-medium">
                     {new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
                   </p>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
+                <span className={`px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-widest ${
                   d.realized 
                     ? 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800' 
                     : 'bg-cyan-50 text-cyan-500 dark:bg-cyan-900/20'
@@ -569,13 +570,16 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
               <div className="flex items-center gap-6 mb-8">
                 <CircularProgress percentage={progress} colorClass={colorClass} />
                 <div>
-                  <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Prêmio Estimado</span>
+                  <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">
+                    {d.realized ? 'Prêmio Recebido' : 'Prêmio Estimado'}
+                  </span>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-xl font-bold">R$</span>
-                    <span className="text-3xl font-black tracking-tight">
-                      {d.prize >= 1000000 
-                        ? `${(d.prize / 1000000).toFixed(0)}M` 
-                        : d.prize.toLocaleString('pt-BR')}
+                    <span className="text-xl font-semibold">R$</span>
+                    <span className="text-3xl font-bold tracking-tight">
+                      {d.realized 
+                        ? (d.prize >= 1000000 ? `${(d.prize / 1000000).toFixed(0)}M` : d.prize.toLocaleString('pt-BR'))
+                        : (d.estimated_prize ? (d.estimated_prize >= 1000000 ? `${(d.estimated_prize / 1000000).toFixed(0)}M` : d.estimated_prize.toLocaleString('pt-BR')) : '—')
+                      }
                     </span>
                   </div>
                 </div>
@@ -585,7 +589,7 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
                 <div className="flex justify-between items-end">
                   <span className="text-sm text-zinc-500 font-medium">Meta de Arrecadação</span>
                   <div className="text-right">
-                    <span className="text-sm font-bold">R$ {Math.round(drawCollected).toLocaleString('pt-BR')}</span>
+                    <span className="text-sm font-semibold">R$ {Math.round(drawCollected).toLocaleString('pt-BR')}</span>
                     <span className="text-sm text-zinc-400 font-medium"> / R$ {Math.round(drawGoal).toLocaleString('pt-BR')}</span>
                   </div>
                 </div>
@@ -600,14 +604,14 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
 
               {d.result && (
                 <div className="mt-6 p-3 bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900 rounded-xl">
-                  <span className="text-[10px] opacity-70 font-bold uppercase">Resultado</span>
-                  <p className="text-lg font-mono font-bold">{d.result}</p>
+                  <span className="text-[10px] opacity-70 font-semibold uppercase">Resultado</span>
+                  <p className="text-lg font-mono font-semibold">{d.result}</p>
                 </div>
               )}
 
               <button 
                 onClick={() => setEditing(d)}
-                className="mt-6 w-full py-2 text-xs font-bold text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors uppercase tracking-widest"
+                className="mt-6 w-full py-2 text-xs font-semibold text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors uppercase tracking-widest"
               >
                 Gerenciar Concurso
               </button>
@@ -637,7 +641,7 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-zinc-500 mb-1">Resultado (Dezenas)</label>
+                  <label className="block text-sm font-semibold text-zinc-500 mb-1">Resultado (Dezenas)</label>
                   <input 
                     type="text" 
                     className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
@@ -647,7 +651,17 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-zinc-500 mb-1">Prêmio Recebido (R$)</label>
+                  <label className="block text-sm font-semibold text-zinc-500 mb-1">Prêmio Estimado (R$)</label>
+                  <input 
+                    type="number" 
+                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
+                    value={editing.estimated_prize || 0}
+                    onChange={(e) => setEditing({...editing, estimated_prize: Number(e.target.value)})}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-zinc-500 mb-1">Prêmio Recebido (R$)</label>
                   <input 
                     type="number" 
                     className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
@@ -657,7 +671,7 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-zinc-500 mb-1">Percentual de Alocação (%)</label>
+                  <label className="block text-sm font-semibold text-zinc-500 mb-1">Percentual de Alocação (%)</label>
                   <input 
                     type="number" 
                     className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
@@ -808,13 +822,13 @@ export default function App() {
             <div className="w-16 h-16 bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Trophy size={32} />
             </div>
-            <h1 className="text-2xl font-bold">LotoGroup</h1>
+            <h1 className="text-2xl font-semibold">LotoGroup</h1>
             <p className="text-zinc-500">Gestão de Aportes Coletivos</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-bold text-zinc-500 mb-1">E-mail</label>
+              <label className="block text-sm font-semibold text-zinc-500 mb-1">E-mail</label>
               <input 
                 type="email" 
                 className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-3"
@@ -824,7 +838,7 @@ export default function App() {
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-zinc-500 mb-1">Senha</label>
+              <label className="block text-sm font-semibold text-zinc-500 mb-1">Senha</label>
               <input 
                 type="password" 
                 className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-3"
