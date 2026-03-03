@@ -15,7 +15,9 @@ import {
   History,
   Trash2,
   Edit,
-  Camera
+  Camera,
+  AlertTriangle,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -317,89 +319,131 @@ const ParticipantsList = ({ participants, contributions, onUpdate }: { participa
 };
 
 const ContributionsList = ({ participants, contributions, onUpdate }: { participants: Participant[], contributions: Contribution[], onUpdate: () => void }) => {
-  const [isAdding, setIsAdding] = useState(false);
-  const [form, setForm] = useState({ participant_id: '', amount: 50, month: new Date().toISOString().slice(0, 7) });
+  const currentYear = new Date().getFullYear();
+  const currentMonthIdx = new Date().getMonth(); // 0-11
+  
+  const months = [
+    { id: '01', label: 'JAN' },
+    { id: '02', label: 'FEV' },
+    { id: '03', label: 'MAR' },
+    { id: '04', label: 'ABR' },
+    { id: '05', label: 'MAI' },
+    { id: '06', label: 'JUN' },
+    { id: '07', label: 'JUL' },
+    { id: '08', label: 'AGO' },
+    { id: '09', label: 'SET' },
+    { id: '10', label: 'OUT' },
+    { id: '11', label: 'NOV' },
+    { id: '12', label: 'DEZ' }
+  ];
 
-  const handleAdd = async () => {
-    if (!form.participant_id) return;
-    const { error } = await supabase
-      .from('contributions')
-      .insert([{ 
-        participant_id: form.participant_id, 
-        amount: form.amount, 
-        month: form.month 
-      }]);
-    
-    if (error) {
-      alert(`Erro ao registrar: ${error.message}`);
-      return;
+  const handleToggle = async (participantId: number, monthId: string) => {
+    const monthStr = `${currentYear}-${monthId}`;
+    const existing = contributions.find(c => c.participant_id === participantId && c.month === monthStr);
+
+    if (existing) {
+      const { error } = await supabase
+        .from('contributions')
+        .delete()
+        .eq('id', existing.id);
+      if (error) alert(error.message);
+    } else {
+      const { error } = await supabase
+        .from('contributions')
+        .insert([{ participant_id: participantId, amount: 50, month: monthStr }]);
+      if (error) alert(error.message);
     }
-    setIsAdding(false);
     onUpdate();
+  };
+
+  const getMonthTotal = (monthId: string) => {
+    const monthStr = `${currentYear}-${monthId}`;
+    return contributions
+      .filter(c => c.month === monthStr)
+      .reduce((acc, c) => acc + c.amount, 0);
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Contribuições</h2>
-        <button onClick={() => setIsAdding(true)} className="btn-primary flex items-center gap-2">
-          <CircleDollarSign size={18} />
-          Registrar Pagamento
-        </button>
+      <div>
+        <h2 className="text-3xl font-black tracking-tight mb-1">Controle de Aportes</h2>
+        <p className="text-zinc-500 font-medium">Clique no ícone para alternar o status de pagamento (R$ 50,00/mês)</p>
       </div>
 
-      {isAdding && (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="card grid grid-cols-1 md:grid-cols-4 gap-4">
-          <select 
-            className="bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
-            value={form.participant_id}
-            onChange={(e) => setForm({...form, participant_id: e.target.value})}
-          >
-            <option value="">Selecionar Participante</option>
-            {participants.filter(p => p.active).map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-          <input 
-            type="number" 
-            className="bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
-            value={form.amount}
-            onChange={(e) => setForm({...form, amount: Number(e.target.value)})}
-          />
-          <input 
-            type="month" 
-            className="bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
-            value={form.month}
-            onChange={(e) => setForm({...form, month: e.target.value})}
-          />
-          <div className="flex gap-2">
-            <button onClick={handleAdd} className="btn-primary flex-1">Salvar</button>
-            <button onClick={() => setIsAdding(false)} className="btn-secondary">X</button>
-          </div>
-        </motion.div>
-      )}
-
-      <div className="card overflow-hidden p-0">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-bottom border-zinc-100 dark:border-zinc-800">
-              <th className="px-6 py-4 text-sm font-bold text-zinc-500">Participante</th>
-              <th className="px-6 py-4 text-sm font-bold text-zinc-500">Mês</th>
-              <th className="px-6 py-4 text-sm font-bold text-zinc-500">Valor</th>
-              <th className="px-6 py-4 text-sm font-bold text-zinc-500">Data Pagto</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-            {contributions.map(c => (
-              <tr key={c.id}>
-                <td className="px-6 py-4 font-medium">{c.participant_name}</td>
-                <td className="px-6 py-4 text-zinc-500">{c.month}</td>
-                <td className="px-6 py-4 font-bold">R$ {c.amount.toLocaleString('pt-BR')}</td>
-                <td className="px-6 py-4 text-zinc-500">{new Date(c.paid_at).toLocaleDateString('pt-BR')}</td>
+      <div className="card p-0 overflow-hidden border-zinc-200 dark:border-zinc-800">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse min-w-[800px]">
+            <thead>
+              <tr className="border-b border-zinc-100 dark:border-zinc-800">
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 border-r border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 sticky left-0 z-10">
+                  Participante
+                </th>
+                {months.map(m => (
+                  <th key={m.id} className="px-2 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 text-center">
+                    {m.label}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              {participants.filter(p => p.active).map(p => (
+                <tr key={p.id} className="group hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50 transition-colors">
+                  <td className="px-6 py-4 font-bold text-zinc-900 dark:text-zinc-100 border-r border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 sticky left-0 z-10">
+                    {p.name}
+                  </td>
+                  {months.map((m, idx) => {
+                    const monthStr = `${currentYear}-${m.id}`;
+                    const isPaid = contributions.some(c => c.participant_id === p.id && c.month === monthStr);
+                    const isPast = idx < currentMonthIdx;
+                    const isCurrent = idx === currentMonthIdx;
+
+                    return (
+                      <td key={m.id} className="px-2 py-3 text-center">
+                        <button 
+                          onClick={() => handleToggle(p.id, m.id)}
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center mx-auto transition-all transform active:scale-90 ${
+                            isPaid 
+                              ? 'bg-emerald-500/10 text-emerald-500 border-2 border-emerald-500/20 hover:bg-emerald-500/20' 
+                              : (isPast || isCurrent)
+                                ? 'bg-rose-500/10 text-rose-500 border-2 border-rose-500/20 hover:bg-rose-500/20'
+                                : 'text-zinc-300 dark:text-zinc-700'
+                          }`}
+                        >
+                          {isPaid ? (
+                            <Check size={18} strokeWidth={3} />
+                          ) : (isPast || isCurrent) ? (
+                            <AlertTriangle size={18} strokeWidth={3} />
+                          ) : (
+                            <span className="font-black opacity-30">—</span>
+                          )}
+                        </button>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="bg-zinc-50/50 dark:bg-zinc-900/50 border-t-2 border-zinc-200 dark:border-zinc-800">
+                <td className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100 border-r border-zinc-100 dark:border-zinc-800 sticky left-0 z-10 bg-zinc-50 dark:bg-zinc-900">
+                  Arrecadação
+                </td>
+                {months.map(m => {
+                  const total = getMonthTotal(m.id);
+                  return (
+                    <td key={m.id} className="px-2 py-6 text-center font-black text-sm">
+                      {total > 0 ? (
+                        <span className="text-zinc-900 dark:text-zinc-100">{total}</span>
+                      ) : (
+                        <span className="text-zinc-300 dark:text-zinc-700 opacity-30">—</span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </div>
     </div>
   );
