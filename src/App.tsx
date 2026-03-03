@@ -825,38 +825,106 @@ const ReportsList = ({ stats, draws, contributions }: { stats: DashboardStats | 
 };
 
 const GamesList = () => {
-  const [activeGame, setActiveGame] = useState('mega');
+  const [activeGame, setActiveGame] = useState('lotofacil');
 
   const games = {
-    mega: {
-      name: 'Mega-Sena',
-      desc: 'A Mega-Sena paga milhões para o acertador dos 6 números sorteados. Ainda é possível ganhar prêmios ao acertar 4 ou 5 números dentre os 60 disponíveis no volante de apostas.',
-      cost: 'R$ 5,00 (Aposta mínima de 6 números)',
-      prob: '1 em 50.063.860 (Aposta de 6 números)',
-      color: 'bg-emerald-500'
+    lotofacil: {
+      name: 'Lotofácil',
+      minNumbers: 15,
+      maxNumbers: 20,
+      range: '1 a 25',
+      costs: [
+        { qty: '15 números', price: 'R$ 3,50' },
+        { qty: '16 números', price: 'R$ 56,00' },
+        { qty: '17 números', price: 'R$ 476,00' },
+        { qty: '18 números', price: 'R$ 2.856,00' },
+        { qty: '19 números', price: 'R$ 13.566,00' },
+        { qty: '20 números', price: 'R$ 54.264,00' },
+      ],
+      prizeRules: 'Ganha prêmio quem acertar 11, 12, 13, 14 ou 15 números.',
+      mainPrizeAcertos: 15,
+      desc: 'O jogador escolhe de 15 a 20 números entre 1 e 25. Os sorteios acontecem às segundas, quartas e sextas-feiras. É uma das modalidades com maiores chances estatísticas de premiação.',
+      prob: '1 em 3.268.760 (15 acertos com 15 números)',
+      color: 'bg-violet-600'
     },
     quina: {
       name: 'Quina',
-      desc: 'Na Quina, você concorre a prêmios grandiosos acertando 2, 3, 4 ou 5 números. São 80 números disponíveis e você pode escolher de 5 a 15 números.',
-      cost: 'R$ 2,50 (Aposta mínima de 5 números)',
-      prob: '1 em 24.040.016 (Aposta de 5 números)',
+      minNumbers: 5,
+      maxNumbers: 15,
+      range: '1 a 80',
+      costs: [
+        { qty: '5 números', price: 'R$ 3,00' },
+        { qty: '6 números', price: 'R$ 18,00' },
+        { qty: '7 números', price: 'R$ 63,00' },
+        { qty: '8 números', price: 'R$ 168,00' },
+        { qty: '9 números', price: 'R$ 378,00' },
+        { qty: '10 números', price: 'R$ 756,00' },
+        { qty: '11 números', price: 'R$ 1.386,00' },
+        { qty: '12 números', price: 'R$ 2.376,00' },
+        { qty: '13 números', price: 'R$ 3.861,00' },
+        { qty: '14 números', price: 'R$ 6.006,00' },
+        { qty: '15 números', price: 'R$ 9.009,00' },
+      ],
+      prizeRules: 'Ganha prêmio quem acertar 2, 3, 4 ou 5 números.',
+      mainPrizeAcertos: 5,
+      desc: 'O jogador escolhe de 5 a 15 números entre 1 e 80. Os sorteios acontecem de segunda a sábado. É uma das loterias mais tradicionais do país.',
+      prob: '1 em 24.040.016 (5 números com 5 apostas)',
       color: 'bg-blue-600'
     },
-    lotofacil: {
-      name: 'Lotofácil',
-      desc: 'A Lotofácil é, como o próprio nome diz, fácil de apostar e principalmente de ganhar. Você marca entre 15 e 20 números, dentre os 25 disponíveis no volante, e ganha prêmio se acertar 11, 12, 13, 14 ou 15 números.',
-      cost: 'R$ 3,00 (Aposta mínima de 15 números)',
-      prob: '1 em 3.268.760 (Aposta de 15 números)',
-      color: 'bg-violet-600'
+    mega: {
+      name: 'Mega-Sena',
+      minNumbers: 6,
+      maxNumbers: 20,
+      range: '1 a 60',
+      costs: [
+        { qty: '6 números', price: 'R$ 6,00' },
+        { qty: '7 números', price: 'R$ 42,00' },
+        { qty: '8 números', price: 'R$ 168,00' },
+        { qty: '9 números', price: 'R$ 504,00' },
+        { qty: '10 números', price: 'R$ 1.260,00' },
+        { qty: '11 números', price: 'R$ 2.772,00' },
+        { qty: '12 números', price: 'R$ 5.544,00' },
+        { qty: '13 números', price: 'R$ 10.296,00' },
+        { qty: '14 números', price: 'R$ 18.018,00' },
+        { qty: '15 números', price: 'R$ 30.030,00' },
+        { qty: '16 números', price: 'R$ 48.048,00' },
+        { qty: '17 números', price: 'R$ 74.256,00' },
+        { qty: '18 números', price: 'R$ 111.384,00' },
+        { qty: '19 números', price: 'R$ 162.792,00' },
+        { qty: '20 números', price: 'R$ 232.560,00' },
+      ],
+      prizeRules: 'Ganha prêmio quem acertar 4, 5 ou 6 números.',
+      mainPrizeAcertos: 6,
+      desc: 'O jogador escolhe de 6 a 20 números entre 1 e 60. Os sorteios acontecem às quartas e sábados. É a modalidade que tradicionalmente paga os maiores prêmios.',
+      prob: '1 em 50.063.860 (6 números com 6 apostas)',
+      color: 'bg-emerald-500'
     },
     dupla: {
       name: 'Dupla Sena',
-      desc: 'Com apenas um bilhete da Dupla Sena, você tem o dobro de chances de ganhar: são dois sorteios por concurso e ganha acertando 3, 4, 5 ou 6 números no primeiro e/ou no segundo sorteio.',
-      cost: 'R$ 2,50 (Aposta mínima de 6 números)',
-      prob: '1 em 15.890.700 (Aposta de 6 números)',
+      minNumbers: 6,
+      maxNumbers: 15,
+      range: '1 a 50',
+      costs: [
+        { qty: '6 números', price: 'R$ 3,00', bets: '1 aposta' },
+        { qty: '7 números', price: 'R$ 21,00', bets: '7 apostas' },
+        { qty: '8 números', price: 'R$ 84,00', bets: '28 apostas' },
+        { qty: '9 números', price: 'R$ 252,00', bets: '84 apostas' },
+        { qty: '10 números', price: 'R$ 630,00', bets: '210 apostas' },
+        { qty: '11 números', price: 'R$ 1.386,00', bets: '462 apostas' },
+        { qty: '12 números', price: 'R$ 2.772,00', bets: '924 apostas' },
+        { qty: '13 números', price: 'R$ 5.148,00', bets: '1.716 apostas' },
+        { qty: '14 números', price: 'R$ 9.009,00', bets: '3.003 apostas' },
+        { qty: '15 números', price: 'R$ 15.015,00', bets: '5.005 apostas' },
+      ],
+      prizeRules: 'São realizados dois sorteios por concurso. Ganha prêmio quem acertar 3, 4, 5 ou 6 números em qualquer um dos dois sorteios.',
+      mainPrizeAcertos: 6,
+      desc: 'O jogador escolhe de 6 a 15 números entre 1 e 50. Cada concurso possui dois sorteios distintos, aumentando as oportunidades de premiação. É uma modalidade estratégica para quem busca duas chances em um único concurso.',
+      prob: '1 em 15.890.700 (6 números)',
       color: 'bg-rose-600'
     }
   };
+
+  const active = games[activeGame as keyof typeof games];
 
   return (
     <div className="space-y-6">
@@ -886,28 +954,81 @@ const GamesList = () => {
         animate={{ opacity: 1, y: 0 }}
         className="card border-2 border-zinc-100 dark:border-zinc-800"
       >
-        <div className="flex items-center gap-4 mb-6">
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white ${games[activeGame as keyof typeof games].color}`}>
-            <Trophy size={24} />
+        <div className="flex items-center gap-4 mb-8">
+          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-inner ${active.color}`}>
+            <Trophy size={28} />
           </div>
-          <h3 className="text-2xl font-bold">{games[activeGame as keyof typeof games].name}</h3>
+          <div>
+            <h3 className="text-3xl font-bold">{active.name}</h3>
+            <p className="text-zinc-500 text-sm font-medium">Loterias Caixa</p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="md:col-span-2 space-y-4">
-            <h4 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Como Funciona</h4>
-            <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              {games[activeGame as keyof typeof games].desc}
-            </p>
-          </div>
-          <div className="space-y-6">
-            <div>
-              <h4 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-2">Valor da Aposta</h4>
-              <p className="text-lg font-semibold">{games[activeGame as keyof typeof games].cost}</p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          <div className="lg:col-span-2 space-y-8">
+            <section>
+              <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em] mb-4">Descrição</h4>
+              <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed text-lg">
+                {active.desc}
+              </p>
+            </section>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                <h5 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Mínimo de Números</h5>
+                <p className="text-xl font-bold">{active.minNumbers}</p>
+              </div>
+              <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                <h5 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Máximo de Números</h5>
+                <p className="text-xl font-bold">{active.maxNumbers}</p>
+              </div>
+              <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                <h5 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Intervalo</h5>
+                <p className="text-xl font-bold">{active.range}</p>
+              </div>
             </div>
-            <div>
-              <h4 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-2">Probabilidade</h4>
-              <p className="text-lg font-semibold">{games[activeGame as keyof typeof games].prob}</p>
+
+            <section>
+              <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em] mb-4">Regras de Premiação</h4>
+              <div className="p-6 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                <p className="text-zinc-700 dark:text-zinc-300 font-medium mb-4">{active.prizeRules}</p>
+                <div className="flex items-center gap-2 text-sm text-zinc-500">
+                  <Check size={16} className="text-emerald-500" />
+                  <span>Acertos para prêmio principal: <strong>{active.mainPrizeAcertos}</strong></span>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em] mb-4">Probabilidade</h4>
+              <div className="p-6 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{active.prob}</p>
+                <p className="text-sm text-zinc-500 mt-1">Chances de ganhar o prêmio principal com a aposta mínima.</p>
+              </div>
+            </section>
+          </div>
+
+          <div className="space-y-6">
+            <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">Tabela de Preços</h4>
+            <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-zinc-100 dark:border-zinc-800 overflow-hidden">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="bg-zinc-100 dark:bg-zinc-800/50 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                    <th className="px-4 py-3">Números</th>
+                    {'bets' in active.costs[0] && <th className="px-4 py-3">Apostas</th>}
+                    <th className="px-4 py-3 text-right">Valor</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {active.costs.map((c: any, i) => (
+                    <tr key={i} className="hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30 transition-colors">
+                      <td className="px-4 py-3 font-medium">{c.qty}</td>
+                      {'bets' in c && <td className="px-4 py-3 text-zinc-500">{c.bets}</td>}
+                      <td className="px-4 py-3 font-bold text-right text-zinc-900 dark:text-zinc-50">{c.price}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
