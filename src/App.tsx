@@ -154,22 +154,29 @@ const ParticipantsList = ({ participants, onUpdate }: { participants: Participan
 
   const handleAdd = async () => {
     if (!newName) return;
-    await fetch('/api/participants', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName, active: true })
-    });
+    const { error } = await supabase
+      .from('participants')
+      .insert([{ name: newName, active: true }]);
+    
+    if (error) {
+      alert(`Erro ao adicionar: ${error.message}`);
+      return;
+    }
     setNewName('');
     setIsAdding(false);
     onUpdate();
   };
 
   const toggleStatus = async (p: Participant) => {
-    await fetch(`/api/participants/${p.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: p.name, active: !p.active })
-    });
+    const { error } = await supabase
+      .from('participants')
+      .update({ active: !p.active })
+      .eq('id', p.id);
+    
+    if (error) {
+      alert(`Erro ao atualizar: ${error.message}`);
+      return;
+    }
     onUpdate();
   };
 
@@ -237,11 +244,18 @@ const ContributionsList = ({ participants, contributions, onUpdate }: { particip
 
   const handleAdd = async () => {
     if (!form.participant_id) return;
-    await fetch('/api/contributions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form)
-    });
+    const { error } = await supabase
+      .from('contributions')
+      .insert([{ 
+        participant_id: form.participant_id, 
+        amount: form.amount, 
+        month: form.month 
+      }]);
+    
+    if (error) {
+      alert(`Erro ao registrar: ${error.message}`);
+      return;
+    }
     setIsAdding(false);
     onUpdate();
   };
@@ -360,11 +374,42 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
 
   const handleSave = async () => {
     if (!editing) return;
-    await fetch(`/api/draws/${editing.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editing)
-    });
+    
+    const { error: updateError } = await supabase
+      .from('draws')
+      .update({
+        realized: editing.realized === 1,
+        result: editing.result,
+        prize: editing.prize,
+        allocation_percentage: editing.allocation_percentage
+      })
+      .eq('id', editing.id);
+
+    if (updateError) {
+      alert(`Erro ao salvar: ${updateError.message}`);
+      return;
+    }
+
+    // Logic for redistribution if realized
+    if (editing.realized === 1) {
+      const { data: remainingDraws } = await supabase
+        .from('draws')
+        .select('*')
+        .eq('realized', false);
+
+      if (remainingDraws && remainingDraws.length > 0) {
+        const totalRemaining = remainingDraws.reduce((acc, d) => acc + d.allocation_percentage, 0);
+        const realizedPercentage = editing.allocation_percentage || 0;
+        
+        for (const d of remainingDraws) {
+          const newPercentage = d.allocation_percentage + (d.allocation_percentage / totalRemaining) * realizedPercentage;
+          await supabase.from('draws').update({ allocation_percentage: newPercentage }).eq('id', d.id);
+        }
+        
+        await supabase.from('draws').update({ allocation_percentage: 0 }).eq('id', editing.id);
+      }
+    }
+
     setEditing(null);
     onUpdate();
   };
@@ -528,16 +573,54 @@ export default function App() {
 
   const fetchData = async () => {
     try {
-      const [sRes, pRes, cRes, dRes] = await Promise.all([
-        fetch('/api/stats'),
-        fetch('/api/participants'),
-        fetch('/api/contributions'),
-        fetch('/api/draws')
-      ]);
-      setStats(await sRes.json());
-      setParticipants(await pRes.json());
-      setContributions(await cRes.json());
-      setDraws(await dRes.json());
+      // 1. Fetch Participants
+      const { data: pData, error: pError } = await supabase
+        .from('participants')
+        .select('*')
+        .order('name', { ascending: true });
+      if (pError) throw pError;
+      setParticipants(pData || []);
+
+      // 2. Fetch Contributions with Participant names
+      const { data: cData, error: cError } = await supabase
+        .from('contributions')
+        .select('*, participants(name)')
+        .order('month', { ascending: false })
+        .order('paid_at', { ascending: false });
+      if (cError) throw cError;
+      setContributions(cData?.map((c: any) => ({
+        ...c,
+        participant_name: c.participants?.name
+      })) || []);
+
+      // 3. Fetch Draws
+      const { data: dData, error: dError } = await supabase
+        .from('draws')
+        .select('*')
+        .order('date', { ascending: true });
+      if (dError) throw dError;
+      setDraws(dData || []);
+
+      // 4. Fetch Bets for stats
+      const { data: bData, error: bError } = await supabase
+        .from('bets')
+        .select('amount');
+      if (bError) throw bError;
+
+      // 5. Calculate Stats
+      const totalCollected = cData?.reduce((acc: number, c: any) => acc + Number(c.amount), 0) || 0;
+      const totalInvested = bData?.reduce((acc: number, b: any) => acc + Number(b.amount), 0) || 0;
+      const activeParticipants = pData?.filter((p: any) => p.active).length || 0;
+      const nextDraw = dData?.find((d: any) => !d.realized) || null;
+
+      setStats({
+        totalCollected,
+        totalInvested,
+        cashAvailable: totalCollected - totalInvested,
+        activeParticipants,
+        nextDraw
+      });
+
     } catch (error) {
       console.error("Erro ao buscar dados:", error);
     }
