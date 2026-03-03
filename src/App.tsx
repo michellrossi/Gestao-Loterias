@@ -12,7 +12,10 @@ import {
   Menu,
   X,
   TrendingUp,
-  History
+  History,
+  Trash2,
+  Edit,
+  Camera
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -148,91 +151,166 @@ const Dashboard = ({ stats, draws }: { stats: DashboardStats | null, draws: Draw
   );
 };
 
-const ParticipantsList = ({ participants, onUpdate }: { participants: Participant[], onUpdate: () => void }) => {
+const ParticipantsList = ({ participants, contributions, onUpdate }: { participants: Participant[], contributions: Contribution[], onUpdate: () => void }) => {
   const [isAdding, setIsAdding] = useState(false);
-  const [newName, setNewName] = useState('');
+  const [editing, setEditing] = useState<Participant | null>(null);
+  const [form, setForm] = useState({ name: '', active: true, avatar_url: '' });
 
   const handleAdd = async () => {
-    if (!newName) return;
+    if (!form.name) return;
     const { error } = await supabase
       .from('participants')
-      .insert([{ name: newName, active: true }]);
+      .insert([{ name: form.name, active: form.active, avatar_url: form.avatar_url }]);
     
     if (error) {
       alert(`Erro ao adicionar: ${error.message}`);
       return;
     }
-    setNewName('');
+    setForm({ name: '', active: true, avatar_url: '' });
     setIsAdding(false);
     onUpdate();
   };
 
-  const toggleStatus = async (p: Participant) => {
+  const handleUpdate = async () => {
+    if (!editing || !form.name) return;
     const { error } = await supabase
       .from('participants')
-      .update({ active: !p.active })
-      .eq('id', p.id);
+      .update({ name: form.name, active: form.active, avatar_url: form.avatar_url })
+      .eq('id', editing.id);
     
     if (error) {
       alert(`Erro ao atualizar: ${error.message}`);
       return;
     }
+    setEditing(null);
+    setForm({ name: '', active: true, avatar_url: '' });
     onUpdate();
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Tem certeza que deseja excluir este participante?')) return;
+    const { error } = await supabase
+      .from('participants')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      alert(`Erro ao excluir: ${error.message}`);
+      return;
+    }
+    onUpdate();
+  };
+
+  const startEdit = (p: Participant) => {
+    setEditing(p);
+    setForm({ name: p.name, active: p.active === 1 || p.active === true as any, avatar_url: p.avatar_url || '' });
+  };
+
+  const getStatus = (p: Participant) => {
+    if (!p.active) return { label: 'Pausado', color: 'bg-zinc-400', sub: 'Inativo' };
+    
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const hasPaidCurrent = contributions.some(c => c.participant_id === p.id && c.month === currentMonth);
+    
+    if (hasPaidCurrent) return { label: 'Pago YTD', color: 'bg-emerald-500', sub: 'Ativo' };
+    
+    const monthName = new Date().toLocaleString('pt-BR', { month: 'short' });
+    return { label: `Pendente ${monthName}`, color: 'bg-amber-500', sub: 'Ativo' };
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Participantes</h2>
-        <button onClick={() => setIsAdding(true)} className="btn-primary flex items-center gap-2">
+        <button onClick={() => { setIsAdding(true); setEditing(null); setForm({ name: '', active: true, avatar_url: '' }); }} className="btn-primary flex items-center gap-2">
           <Users size={18} />
           Novo Participante
         </button>
       </div>
 
-      {isAdding && (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="card flex gap-4">
-          <input 
-            type="text" 
-            placeholder="Nome completo" 
-            className="flex-1 bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 focus:ring-2 ring-zinc-200"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-          />
-          <button onClick={handleAdd} className="btn-primary">Salvar</button>
-          <button onClick={() => setIsAdding(false)} className="btn-secondary">Cancelar</button>
+      {(isAdding || editing) && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="card space-y-4">
+          <h3 className="font-bold">{editing ? 'Editar Participante' : 'Novo Participante'}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input 
+              type="text" 
+              placeholder="Nome completo" 
+              className="bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
+              value={form.name}
+              onChange={(e) => setForm({...form, name: e.target.value})}
+            />
+            <input 
+              type="text" 
+              placeholder="URL da Foto de Perfil" 
+              className="bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
+              value={form.avatar_url}
+              onChange={(e) => setForm({...form, avatar_url: e.target.value})}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <input 
+              type="checkbox" 
+              id="active"
+              checked={form.active}
+              onChange={(e) => setForm({...form, active: e.target.checked})}
+            />
+            <label htmlFor="active" className="text-sm font-medium">Participante Ativo</label>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={editing ? handleUpdate : handleAdd} className="btn-primary flex-1">
+              {editing ? 'Salvar Alterações' : 'Adicionar'}
+            </button>
+            <button onClick={() => { setIsAdding(false); setEditing(null); }} className="btn-secondary">Cancelar</button>
+          </div>
         </motion.div>
       )}
 
-      <div className="card overflow-hidden p-0">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-bottom border-zinc-100 dark:border-zinc-800">
-              <th className="px-6 py-4 text-sm font-bold text-zinc-500">Nome</th>
-              <th className="px-6 py-4 text-sm font-bold text-zinc-500">Status</th>
-              <th className="px-6 py-4 text-sm font-bold text-zinc-500">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-            {participants.map(p => (
-              <tr key={p.id}>
-                <td className="px-6 py-4 font-medium">{p.name}</td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                    p.active ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20' : 'bg-rose-50 text-rose-600 dark:bg-rose-900/20'
-                  }`}>
-                    {p.active ? 'Ativo' : 'Inativo'}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <button onClick={() => toggleStatus(p)} className="text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
-                    {p.active ? 'Desativar' : 'Ativar'}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {participants.map(p => {
+          const status = getStatus(p);
+          const totalPaid = contributions
+            .filter(c => c.participant_id === p.id)
+            .reduce((acc, c) => acc + c.amount, 0);
+
+          return (
+            <div key={p.id} className="card flex items-center justify-between group">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-full overflow-hidden bg-zinc-100 dark:bg-zinc-800 border-2 border-white dark:border-zinc-900 shadow-sm">
+                    {p.avatar_url ? (
+                      <img src={p.avatar_url} alt={p.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-zinc-400">
+                        <Users size={20} />
+                      </div>
+                    )}
+                  </div>
+                  <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-zinc-900 ${status.color}`} />
+                </div>
+                <div>
+                  <h4 className="font-bold text-zinc-900 dark:text-zinc-50 leading-tight">{p.name}</h4>
+                  <div className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider">
+                    <span className={status.color.replace('bg-', 'text-')}>{status.label}</span>
+                    <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                    <span className="text-zinc-400">{status.sub}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-end gap-1">
+                <span className="text-lg font-bold">R$ {totalPaid.toLocaleString('pt-BR')}</span>
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => startEdit(p)} className="p-1 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+                    <Edit size={14} />
                   </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  <button onClick={() => handleDelete(p.id)} className="p-1 text-zinc-400 hover:text-rose-500">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -786,7 +864,7 @@ export default function App() {
                 transition={{ duration: 0.2 }}
               >
                 {view === 'dashboard' && <Dashboard stats={stats} draws={draws} />}
-                {view === 'participants' && <ParticipantsList participants={participants} onUpdate={fetchData} />}
+                {view === 'participants' && <ParticipantsList participants={participants} contributions={contributions} onUpdate={fetchData} />}
                 {view === 'contributions' && <ContributionsList participants={participants} contributions={contributions} onUpdate={fetchData} />}
                 {view === 'draws' && <DrawsList draws={draws} stats={stats} onUpdate={fetchData} />}
               </motion.div>

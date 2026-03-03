@@ -3,6 +3,7 @@ export interface Participant {
   name: string;
   active: number;
   created_at: string;
+  avatar_url?: string;
 }
 
 export interface Contribution {
