@@ -17,7 +17,10 @@ import {
   Edit,
   Camera,
   AlertTriangle,
-  Check
+  Check,
+  FileText,
+  Gamepad2,
+  Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -72,12 +75,7 @@ const StatCard = ({ label, value, icon: Icon, trend, colorClass }: { label: stri
 const Dashboard = ({ stats, draws }: { stats: DashboardStats | null, draws: Draw[] }) => {
   if (!stats) return null;
 
-  const pieData = draws.map(d => ({
-    name: d.name,
-    value: d.allocation_percentage
-  })).filter(d => d.value > 0);
-
-  const COLORS = ['#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EF4444'];
+  const DRAW_COLORS = ['#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EF4444'];
 
   return (
     <div className="space-y-8">
@@ -90,37 +88,39 @@ const Dashboard = ({ stats, draws }: { stats: DashboardStats | null, draws: Draw
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="card border-2 border-amber-500/20">
-          <h3 className="text-lg font-semibold mb-6">Distribuição por Sorteio</h3>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-4 space-y-2">
-            {pieData.map((d, i) => (
-              <div key={d.name} className="flex justify-between items-center text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                  <span className="text-zinc-500">{d.name}</span>
+          <h3 className="text-lg font-semibold mb-6">Distribuição por Concurso</h3>
+          <div className="space-y-6">
+            {draws.map((d, i) => {
+              const amount = stats.totalCollected * (d.allocation_percentage / 100);
+              const color = DRAW_COLORS[i % DRAW_COLORS.length];
+              return (
+                <div key={d.id} className="space-y-2">
+                  <div className="flex justify-between items-center text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: d.realized ? '#94a3b8' : color }} />
+                      <span className={d.realized ? 'text-zinc-400' : 'text-zinc-700 dark:text-zinc-300'}>{d.name}</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      {d.realized ? (
+                        <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Realizado</span>
+                      ) : (
+                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                          {d.allocation_percentage.toFixed(0)}% — R$ {amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="h-1.5 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${d.allocation_percentage}%` }}
+                      className="h-full rounded-full"
+                      style={{ backgroundColor: d.realized ? '#cbd5e1' : color }}
+                    />
+                  </div>
                 </div>
-                <span className="font-semibold">{d.value.toFixed(1)}%</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -136,7 +136,7 @@ const Dashboard = ({ stats, draws }: { stats: DashboardStats | null, draws: Draw
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900 rounded-xl">
                   <span className="text-xs opacity-70 uppercase font-semibold">Aporte Estimado</span>
-                  <p className="text-2xl font-semibold">R$ {(stats.cashAvailable * (stats.nextDraw.allocation_percentage / 100)).toLocaleString('pt-BR')}</p>
+                  <p className="text-2xl font-semibold">R$ {(stats.totalCollected * (stats.nextDraw.allocation_percentage / 100)).toLocaleString('pt-BR')}</p>
                 </div>
                 <div className="p-4 bg-zinc-100 dark:bg-zinc-800 rounded-xl">
                   <span className="text-xs text-zinc-500 uppercase font-semibold">Percentual Atual</span>
@@ -157,6 +157,35 @@ const ParticipantsList = ({ participants, contributions, onUpdate }: { participa
   const [isAdding, setIsAdding] = useState(false);
   const [editing, setEditing] = useState<Participant | null>(null);
   const [form, setForm] = useState({ name: '', active: true, avatar_url: '' });
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      setForm({ ...form, avatar_url: publicUrl });
+    } catch (error: any) {
+      alert(`Erro no upload: ${error.message}`);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleAdd = async () => {
     if (!form.name) return;
@@ -214,7 +243,7 @@ const ParticipantsList = ({ participants, contributions, onUpdate }: { participa
     const currentMonth = new Date().toISOString().slice(0, 7);
     const hasPaidCurrent = contributions.some(c => c.participant_id === p.id && c.month === currentMonth);
     
-    if (hasPaidCurrent) return { label: 'Pago YTD', color: 'bg-emerald-500', sub: 'Ativo' };
+    if (hasPaidCurrent) return { label: 'Pago', color: 'bg-emerald-500', sub: 'Ativo' };
     
     const monthName = new Date().toLocaleString('pt-BR', { month: 'short' });
     return { label: `Pendente ${monthName}`, color: 'bg-amber-500', sub: 'Ativo' };
@@ -230,42 +259,76 @@ const ParticipantsList = ({ participants, contributions, onUpdate }: { participa
         </button>
       </div>
 
-      {(isAdding || editing) && (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="card space-y-4">
-          <h3 className="font-semibold">{editing ? 'Editar Participante' : 'Novo Participante'}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input 
-              type="text" 
-              placeholder="Nome completo" 
-              className="bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
-              value={form.name}
-              onChange={(e) => setForm({...form, name: e.target.value})}
-            />
-            <input 
-              type="text" 
-              placeholder="URL da Foto de Perfil" 
-              className="bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
-              value={form.avatar_url}
-              onChange={(e) => setForm({...form, avatar_url: e.target.value})}
-            />
+      <AnimatePresence>
+        {(isAdding || editing) && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="card w-full max-w-md space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-semibold">{editing ? 'Editar Participante' : 'Novo Participante'}</h3>
+                <button onClick={() => { setIsAdding(false); setEditing(null); }}><X size={20} /></button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex flex-col items-center gap-4 mb-4">
+                  <div className="w-24 h-24 rounded-full overflow-hidden bg-zinc-100 dark:bg-zinc-800 border-4 border-white dark:border-zinc-900 shadow-lg relative group">
+                    {form.avatar_url ? (
+                      <img src={form.avatar_url} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-zinc-400">
+                        <Users size={40} />
+                      </div>
+                    )}
+                    <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                      <Upload size={24} className="text-white" />
+                      <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} disabled={uploading} />
+                    </label>
+                  </div>
+                  {uploading && <span className="text-xs text-zinc-500 animate-pulse">Enviando...</span>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-zinc-500 mb-1">Nome Completo</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: João Silva" 
+                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
+                    value={form.name}
+                    onChange={(e) => setForm({...form, name: e.target.value})}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-zinc-500 mb-1">URL da Foto (Opcional)</label>
+                  <input 
+                    type="text" 
+                    placeholder="https://..." 
+                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
+                    value={form.avatar_url}
+                    onChange={(e) => setForm({...form, avatar_url: e.target.value})}
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    id="active"
+                    checked={form.active}
+                    onChange={(e) => setForm({...form, active: e.target.checked})}
+                  />
+                  <label htmlFor="active" className="text-sm font-medium">Participante Ativo</label>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <button onClick={editing ? handleUpdate : handleAdd} className="btn-primary flex-1" disabled={uploading}>
+                  {editing ? 'Salvar Alterações' : 'Adicionar'}
+                </button>
+                <button onClick={() => { setIsAdding(false); setEditing(null); }} className="btn-secondary">Cancelar</button>
+              </div>
+            </motion.div>
           </div>
-          <div className="flex items-center gap-2">
-            <input 
-              type="checkbox" 
-              id="active"
-              checked={form.active}
-              onChange={(e) => setForm({...form, active: e.target.checked})}
-            />
-            <label htmlFor="active" className="text-sm font-medium">Participante Ativo</label>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={editing ? handleUpdate : handleAdd} className="btn-primary flex-1">
-              {editing ? 'Salvar Alterações' : 'Adicionar'}
-            </button>
-            <button onClick={() => { setIsAdding(false); setEditing(null); }} className="btn-secondary">Cancelar</button>
-          </div>
-        </motion.div>
-      )}
+        )}
+      </AnimatePresence>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {participants.map(p => {
@@ -693,11 +756,172 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
   );
 };
 
+const ReportsList = ({ stats, draws, contributions }: { stats: DashboardStats | null, draws: Draw[], contributions: Contribution[] }) => {
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-semibold">Relatórios de Transparência</h2>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="card border-2 border-zinc-100 dark:border-zinc-800">
+          <h3 className="text-lg font-semibold mb-4">Resumo Financeiro</h3>
+          <div className="space-y-4">
+            <div className="flex justify-between py-2 border-b border-zinc-50 dark:border-zinc-900">
+              <span className="text-zinc-500">Total Arrecadado</span>
+              <span className="font-semibold">R$ {stats?.totalCollected.toLocaleString('pt-BR')}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-zinc-50 dark:border-zinc-900">
+              <span className="text-zinc-500">Total em Apostas</span>
+              <span className="font-semibold text-rose-500">R$ {stats?.totalInvested.toLocaleString('pt-BR')}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-zinc-50 dark:border-zinc-900">
+              <span className="text-zinc-500">Saldo Disponível</span>
+              <span className="font-semibold text-emerald-500">R$ {stats?.cashAvailable.toLocaleString('pt-BR')}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="card border-2 border-zinc-100 dark:border-zinc-800">
+          <h3 className="text-lg font-semibold mb-4">Próximas Alocações</h3>
+          <div className="space-y-4">
+            {draws.filter(d => !d.realized).map(d => (
+              <div key={d.id} className="flex justify-between py-2 border-b border-zinc-50 dark:border-zinc-900">
+                <span className="text-zinc-500">{d.name}</span>
+                <span className="font-semibold">R$ {(stats?.totalCollected ? stats.totalCollected * (d.allocation_percentage / 100) : 0).toLocaleString('pt-BR')}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="card border-2 border-zinc-100 dark:border-zinc-800">
+        <h3 className="text-lg font-semibold mb-4">Histórico de Contribuições</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 dark:border-zinc-800">
+                <th className="pb-3">Participante</th>
+                <th className="pb-3">Mês</th>
+                <th className="pb-3">Valor</th>
+                <th className="pb-3">Data</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-50 dark:divide-zinc-900">
+              {contributions.slice(0, 20).map(c => (
+                <tr key={c.id} className="text-sm">
+                  <td className="py-3 font-medium">{c.participant_name}</td>
+                  <td className="py-3 text-zinc-500">{c.month}</td>
+                  <td className="py-3 font-semibold">R$ {c.amount.toLocaleString('pt-BR')}</td>
+                  <td className="py-3 text-zinc-400">{new Date(c.paid_at).toLocaleDateString('pt-BR')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const GamesList = () => {
+  const [activeGame, setActiveGame] = useState('mega');
+
+  const games = {
+    mega: {
+      name: 'Mega-Sena',
+      desc: 'A Mega-Sena paga milhões para o acertador dos 6 números sorteados. Ainda é possível ganhar prêmios ao acertar 4 ou 5 números dentre os 60 disponíveis no volante de apostas.',
+      cost: 'R$ 5,00 (Aposta mínima de 6 números)',
+      prob: '1 em 50.063.860 (Aposta de 6 números)',
+      color: 'bg-emerald-500'
+    },
+    quina: {
+      name: 'Quina',
+      desc: 'Na Quina, você concorre a prêmios grandiosos acertando 2, 3, 4 ou 5 números. São 80 números disponíveis e você pode escolher de 5 a 15 números.',
+      cost: 'R$ 2,50 (Aposta mínima de 5 números)',
+      prob: '1 em 24.040.016 (Aposta de 5 números)',
+      color: 'bg-blue-600'
+    },
+    lotofacil: {
+      name: 'Lotofácil',
+      desc: 'A Lotofácil é, como o próprio nome diz, fácil de apostar e principalmente de ganhar. Você marca entre 15 e 20 números, dentre os 25 disponíveis no volante, e ganha prêmio se acertar 11, 12, 13, 14 ou 15 números.',
+      cost: 'R$ 3,00 (Aposta mínima de 15 números)',
+      prob: '1 em 3.268.760 (Aposta de 15 números)',
+      color: 'bg-violet-600'
+    },
+    dupla: {
+      name: 'Dupla Sena',
+      desc: 'Com apenas um bilhete da Dupla Sena, você tem o dobro de chances de ganhar: são dois sorteios por concurso e ganha acertando 3, 4, 5 ou 6 números no primeiro e/ou no segundo sorteio.',
+      cost: 'R$ 2,50 (Aposta mínima de 6 números)',
+      prob: '1 em 15.890.700 (Aposta de 6 números)',
+      color: 'bg-rose-600'
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-semibold">Informações dos Jogos</h2>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {Object.entries(games).map(([id, game]) => (
+          <button
+            key={id}
+            onClick={() => setActiveGame(id)}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+              activeGame === id 
+                ? `${game.color} text-white shadow-lg` 
+                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+            }`}
+          >
+            {game.name}
+          </button>
+        ))}
+      </div>
+
+      <motion.div 
+        key={activeGame}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="card border-2 border-zinc-100 dark:border-zinc-800"
+      >
+        <div className="flex items-center gap-4 mb-6">
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white ${games[activeGame as keyof typeof games].color}`}>
+            <Trophy size={24} />
+          </div>
+          <h3 className="text-2xl font-bold">{games[activeGame as keyof typeof games].name}</h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="md:col-span-2 space-y-4">
+            <h4 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Como Funciona</h4>
+            <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              {games[activeGame as keyof typeof games].desc}
+            </p>
+          </div>
+          <div className="space-y-6">
+            <div>
+              <h4 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-2">Valor da Aposta</h4>
+              <p className="text-lg font-semibold">{games[activeGame as keyof typeof games].cost}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-2">Probabilidade</h4>
+              <p className="text-lg font-semibold">{games[activeGame as keyof typeof games].prob}</p>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 // --- Main App ---
 
 export default function App() {
-  const [view, setView] = useState<'dashboard' | 'participants' | 'contributions' | 'draws'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'participants' | 'contributions' | 'draws' | 'reports' | 'games'>('dashboard');
   const [darkMode, setDarkMode] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(true);
@@ -875,6 +1099,8 @@ export default function App() {
             <SidebarItem icon={Users} label="Participantes" active={view === 'participants'} onClick={() => setView('participants')} />
             <SidebarItem icon={CircleDollarSign} label="Contribuições" active={view === 'contributions'} onClick={() => setView('contributions')} />
             <SidebarItem icon={Trophy} label="Concursos" active={view === 'draws'} onClick={() => setView('draws')} />
+            <SidebarItem icon={FileText} label="Relatórios" active={view === 'reports'} onClick={() => setView('reports')} />
+            <SidebarItem icon={Gamepad2} label="Jogos" active={view === 'games'} onClick={() => setView('games')} />
           </nav>
 
           <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800 space-y-2">
@@ -907,10 +1133,72 @@ export default function App() {
                 </div>
                 <span className="text-lg font-bold">LotoGroup</span>
               </div>
-              <button className="p-2 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
+              <button 
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="p-2 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800"
+              >
                 <Menu size={20} />
               </button>
             </header>
+
+            {/* Mobile Menu Overlay */}
+            <AnimatePresence>
+              {isMobileMenuOpen && (
+                <div className="fixed inset-0 z-[60] lg:hidden">
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                  />
+                  <motion.div 
+                    initial={{ x: '-100%' }}
+                    animate={{ x: 0 }}
+                    exit={{ x: '-100%' }}
+                    className="absolute inset-y-0 left-0 w-72 bg-white dark:bg-zinc-900 p-6 shadow-2xl"
+                  >
+                    <div className="flex justify-between items-center mb-12">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 rounded-xl flex items-center justify-center">
+                          <Trophy size={20} />
+                        </div>
+                        <span className="text-xl font-bold tracking-tight">LotoGroup</span>
+                      </div>
+                      <button onClick={() => setIsMobileMenuOpen(false)}>
+                        <X size={24} />
+                      </button>
+                    </div>
+
+                    <nav className="space-y-2">
+                      <SidebarItem icon={LayoutDashboard} label="Dashboard" active={view === 'dashboard'} onClick={() => { setView('dashboard'); setIsMobileMenuOpen(false); }} />
+                      <SidebarItem icon={Users} label="Participantes" active={view === 'participants'} onClick={() => { setView('participants'); setIsMobileMenuOpen(false); }} />
+                      <SidebarItem icon={CircleDollarSign} label="Contribuições" active={view === 'contributions'} onClick={() => { setView('contributions'); setIsMobileMenuOpen(false); }} />
+                      <SidebarItem icon={Trophy} label="Concursos" active={view === 'draws'} onClick={() => { setView('draws'); setIsMobileMenuOpen(false); }} />
+                      <SidebarItem icon={FileText} label="Relatórios" active={view === 'reports'} onClick={() => { setView('reports'); setIsMobileMenuOpen(false); }} />
+                      <SidebarItem icon={Gamepad2} label="Jogos" active={view === 'games'} onClick={() => { setView('games'); setIsMobileMenuOpen(false); }} />
+                    </nav>
+
+                    <div className="absolute bottom-6 left-6 right-6 pt-6 border-t border-zinc-100 dark:border-zinc-800 space-y-2">
+                      <button 
+                        onClick={() => setDarkMode(!darkMode)}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
+                      >
+                        {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+                        <span className="font-medium">{darkMode ? 'Modo Claro' : 'Modo Escuro'}</span>
+                      </button>
+                      <button 
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all"
+                      >
+                        <LogOut size={20} />
+                        <span className="font-medium">Sair</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
 
             {/* Page Content */}
             <AnimatePresence mode="wait">
@@ -925,6 +1213,8 @@ export default function App() {
                 {view === 'participants' && <ParticipantsList participants={participants} contributions={contributions} onUpdate={fetchData} />}
                 {view === 'contributions' && <ContributionsList participants={participants} contributions={contributions} onUpdate={fetchData} />}
                 {view === 'draws' && <DrawsList draws={draws} stats={stats} onUpdate={fetchData} />}
+                {view === 'reports' && <ReportsList stats={stats} draws={draws} contributions={contributions} />}
+                {view === 'games' && <GamesList />}
               </motion.div>
             </AnimatePresence>
 
