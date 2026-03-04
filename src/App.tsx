@@ -621,7 +621,7 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
           const color = DRAW_COLORS[i % DRAW_COLORS.length];
 
           return (
-            <div key={d.id} className={`card relative overflow-hidden group border-2 ${color.lightBorder}`}>
+            <div key={d.id} className={`card relative overflow-hidden group border-2 transition-all hover:shadow-md ${color.border} dark:${color.lightBorder}`}>
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{d.name}</h3>
