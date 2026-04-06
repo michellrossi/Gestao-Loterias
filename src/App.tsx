@@ -385,10 +385,9 @@ const ParticipantsList = ({ participants, contributions, onUpdate }: { participa
 
 const ContributionsList = ({ participants, contributions, onUpdate }: { participants: Participant[], contributions: Contribution[], onUpdate: () => void }) => {
   const currentYear = new Date().getFullYear();
-  const currentMonthIdx = new Date().getMonth(); // 0-11
+  const currentMonthIdx = new Date().getMonth() - 1; // -1-10
   
   const months = [
-    { id: '01', label: 'JAN' },
     { id: '02', label: 'FEV' },
     { id: '03', label: 'MAR' },
     { id: '04', label: 'ABR' },
@@ -549,8 +548,10 @@ const CircularProgress = ({ percentage, colorClass }: { percentage: number, colo
   );
 };
 
-const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: DashboardStats | null, onUpdate: () => void }) => {
+const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: DashboardStats | null, bets: Bet[], onUpdate: () => void }) => {
   const [editing, setEditing] = useState<Draw | null>(null);
+  const [newBet, setNewBet] = useState({ description: '', amount: 0 });
+  const [isAddingBet, setIsAddingBet] = useState(false);
 
   const DRAW_COLORS = [
     { text: 'text-amber-500', bg: 'bg-amber-500', border: 'border-amber-500', lightBorder: 'border-amber-500/50' },
@@ -584,8 +585,9 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
       return;
     }
 
-    // Logic for redistribution if realized
-    if (editing.realized === 1) {
+    // Logic for redistribution if realized (only if it was NOT realized before)
+    const originalDraw = draws.find(d => d.id === editing.id);
+    if (editing.realized === 1 && originalDraw?.realized === 0) {
       const { data: remainingDraws } = await supabase
         .from('draws')
         .select('*')
@@ -608,6 +610,44 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
     onUpdate();
   };
 
+  const handleAddBet = async () => {
+    if (!editing || !newBet.description || newBet.amount <= 0) return;
+
+    const { error } = await supabase
+      .from('bets')
+      .insert([{
+        draw_id: editing.id,
+        description: newBet.description,
+        amount: newBet.amount,
+        date: new Date().toISOString()
+      }]);
+
+    if (error) {
+      alert(`Erro ao adicionar aposta: ${error.message}`);
+      return;
+    }
+
+    setNewBet({ description: '', amount: 0 });
+    setIsAddingBet(false);
+    onUpdate();
+  };
+
+  const handleDeleteBet = async (betId: number) => {
+    if (!confirm('Deseja excluir esta aposta?')) return;
+
+    const { error } = await supabase
+      .from('bets')
+      .delete()
+      .eq('id', betId);
+
+    if (error) {
+      alert(`Erro ao excluir aposta: ${error.message}`);
+      return;
+    }
+
+    onUpdate();
+  };
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-semibold">Concursos Especiais</h2>
@@ -619,9 +659,11 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
           const drawCollected = (stats?.totalCollected || 0) * (d.allocation_percentage / 100);
           const progress = drawGoal > 0 ? (drawCollected / drawGoal) * 100 : 0;
           const color = DRAW_COLORS[i % DRAW_COLORS.length];
+          const drawBets = bets.filter(b => b.draw_id === d.id);
+          const totalSpent = drawBets.reduce((acc, b) => acc + b.amount, 0);
 
           return (
-            <div key={d.id} className={`card relative overflow-hidden group border-2 transition-all hover:shadow-md ${color.border} dark:${color.lightBorder}`}>
+            <div key={d.id} className={`card relative overflow-hidden group border-2 ${color.lightBorder}`}>
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{d.name}</h3>
@@ -656,20 +698,31 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <div className="flex justify-between items-end">
-                  <span className="text-sm text-zinc-500 font-medium">Meta de Arrecadação</span>
-                  <div className="text-right">
-                    <span className="text-sm font-semibold">R$ {Math.round(drawCollected).toLocaleString('pt-BR')}</span>
-                    <span className="text-sm text-zinc-400 font-medium"> / R$ {Math.round(drawGoal).toLocaleString('pt-BR')}</span>
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-end">
+                    <span className="text-sm text-zinc-500 font-medium">Meta de Arrecadação</span>
+                    <div className="text-right">
+                      <span className="text-sm font-semibold">R$ {Math.round(drawCollected).toLocaleString('pt-BR')}</span>
+                      <span className="text-sm text-zinc-400 font-medium"> / R$ {Math.round(drawGoal).toLocaleString('pt-BR')}</span>
+                    </div>
+                  </div>
+                  <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(progress, 100)}%` }}
+                      className="h-full rounded-full"
+                      style={{ backgroundColor: d.realized ? '#cbd5e1' : color.bg }}
+                    />
                   </div>
                 </div>
-                <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.min(progress, 100)}%` }}
-                    className={`h-full rounded-full ${color.bg}`}
-                  />
+
+                <div className="flex justify-between items-center p-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800">
+                  <div className="flex items-center gap-2">
+                    <History size={14} className="text-zinc-400" />
+                    <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Total Investido</span>
+                  </div>
+                  <span className="text-sm font-bold text-rose-500">R$ {totalSpent.toLocaleString('pt-BR')}</span>
                 </div>
               </div>
 
@@ -693,68 +746,129 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
 
       <AnimatePresence>
         {editing && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="card w-full max-w-md space-y-6">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="card w-full max-w-2xl space-y-6 my-8">
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold">{editing.name}</h3>
                 <button onClick={() => setEditing(null)}><X size={20} /></button>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="checkbox" 
-                    id="realized"
-                    checked={editing.realized === 1}
-                    onChange={(e) => setEditing({...editing, realized: e.target.checked ? 1 : 0})}
-                  />
-                  <label htmlFor="realized" className="font-medium">Sorteio Realizado</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Configurações</h4>
+                  
+                  <div className="flex items-center gap-2 p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl">
+                    <input 
+                      type="checkbox" 
+                      id="realized"
+                      className="w-4 h-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
+                      checked={editing.realized === 1}
+                      onChange={(e) => setEditing({...editing, realized: e.target.checked ? 1 : 0})}
+                    />
+                    <label htmlFor="realized" className="font-semibold text-sm">Sorteio Realizado</label>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Resultado (Dezenas)</label>
+                    <input 
+                      type="text" 
+                      className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
+                      value={editing.result || ''}
+                      onChange={(e) => setEditing({...editing, result: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Prêmio Estimado</label>
+                      <input 
+                        type="number" 
+                        className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
+                        value={editing.estimated_prize || 0}
+                        onChange={(e) => setEditing({...editing, estimated_prize: Number(e.target.value)})}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Prêmio Recebido</label>
+                      <input 
+                        type="number" 
+                        className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
+                        value={editing.prize}
+                        onChange={(e) => setEditing({...editing, prize: Number(e.target.value)})}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Percentual de Alocação (%)</label>
+                    <input 
+                      type="number" 
+                      className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
+                      value={editing.allocation_percentage}
+                      onChange={(e) => setEditing({...editing, allocation_percentage: Number(e.target.value)})}
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-zinc-500 mb-1">Resultado (Dezenas)</label>
-                  <input 
-                    type="text" 
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
-                    value={editing.result || ''}
-                    onChange={(e) => setEditing({...editing, result: e.target.value})}
-                  />
-                </div>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Apostas Realizadas</h4>
+                    <button 
+                      onClick={() => setIsAddingBet(!isAddingBet)}
+                      className="text-xs font-bold text-zinc-900 dark:text-zinc-50 hover:underline"
+                    >
+                      {isAddingBet ? 'Cancelar' : '+ Adicionar'}
+                    </button>
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-zinc-500 mb-1">Prêmio Estimado (R$)</label>
-                  <input 
-                    type="number" 
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
-                    value={editing.estimated_prize || 0}
-                    onChange={(e) => setEditing({...editing, estimated_prize: Number(e.target.value)})}
-                  />
-                </div>
+                  {isAddingBet && (
+                    <div className="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-xl space-y-3 border border-zinc-200 dark:border-zinc-700">
+                      <input 
+                        type="text" 
+                        placeholder="Descrição (ex: 10 jogos de 15 nº)"
+                        className="w-full bg-white dark:bg-zinc-900 border-none rounded-lg px-3 py-2 text-sm"
+                        value={newBet.description}
+                        onChange={(e) => setNewBet({...newBet, description: e.target.value})}
+                      />
+                      <div className="flex gap-2">
+                        <input 
+                          type="number" 
+                          placeholder="Valor R$"
+                          className="flex-1 bg-white dark:bg-zinc-900 border-none rounded-lg px-3 py-2 text-sm"
+                          value={newBet.amount || ''}
+                          onChange={(e) => setNewBet({...newBet, amount: Number(e.target.value)})}
+                        />
+                        <button onClick={handleAddBet} className="btn-primary px-4 py-2 text-xs">OK</button>
+                      </div>
+                    </div>
+                  )}
 
-                <div>
-                  <label className="block text-sm font-semibold text-zinc-500 mb-1">Prêmio Recebido (R$)</label>
-                  <input 
-                    type="number" 
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
-                    value={editing.prize}
-                    onChange={(e) => setEditing({...editing, prize: Number(e.target.value)})}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-zinc-500 mb-1">Percentual de Alocação (%)</label>
-                  <input 
-                    type="number" 
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
-                    value={editing.allocation_percentage}
-                    onChange={(e) => setEditing({...editing, allocation_percentage: Number(e.target.value)})}
-                  />
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                    {bets.filter(b => b.draw_id === editing.id).length === 0 ? (
+                      <p className="text-xs text-zinc-500 italic">Nenhuma aposta registrada para este concurso.</p>
+                    ) : (
+                      bets.filter(b => b.draw_id === editing.id).map(b => (
+                        <div key={b.id} className="flex justify-between items-center p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl group">
+                          <div>
+                            <p className="text-sm font-semibold">{b.description}</p>
+                            <p className="text-[10px] text-zinc-500">{new Date(b.date).toLocaleDateString('pt-BR')}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-bold text-rose-500">R$ {b.amount.toLocaleString('pt-BR')}</span>
+                            <button onClick={() => handleDeleteBet(b.id)} className="text-zinc-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex gap-2 pt-4">
+              <div className="flex gap-2 pt-4 border-t border-zinc-100 dark:border-zinc-800">
                 <button onClick={handleSave} className="btn-primary flex-1">Salvar Alterações</button>
-                <button onClick={() => setEditing(null)} className="btn-secondary">Cancelar</button>
+                <button onClick={() => setEditing(null)} className="btn-secondary">Fechar</button>
               </div>
             </motion.div>
           </div>
@@ -764,7 +878,14 @@ const DrawsList = ({ draws, stats, onUpdate }: { draws: Draw[], stats: Dashboard
   );
 };
 
-const ReportsList = ({ stats, draws, contributions }: { stats: DashboardStats | null, draws: Draw[], contributions: Contribution[] }) => {
+const ReportsList = ({ stats, draws, contributions, bets }: { stats: DashboardStats | null, draws: Draw[], contributions: Contribution[], bets: Bet[] }) => {
+  const currentYear = new Date().getFullYear().toString();
+  const filteredContributions = contributions.filter(c => {
+    if (!c.month) return false;
+    const [year, month] = c.month.split('-');
+    return year === currentYear && month !== '01';
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -804,26 +925,62 @@ const ReportsList = ({ stats, draws, contributions }: { stats: DashboardStats | 
       </div>
 
       <div className="card border-2 border-zinc-100 dark:border-zinc-800">
-        <h3 className="text-lg font-semibold mb-4">Histórico de Contribuições</h3>
+        <h3 className="text-lg font-semibold mb-6">Arrecadação Mensal (Fev - Dez)</h3>
+        <div className="h-[300px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={(() => {
+              const monthLabels: { [key: string]: string } = {
+                '02': 'Fev', '03': 'Mar', '04': 'Abr', '05': 'Mai', '06': 'Jun',
+                '07': 'Jul', '08': 'Ago', '09': 'Set', '10': 'Out', '11': 'Nov', '12': 'Dez'
+              };
+              return Object.keys(monthLabels).map(monthId => {
+                const monthStr = `${currentYear}-${monthId}`;
+                const total = filteredContributions
+                  .filter(c => c.month === monthStr)
+                  .reduce((acc, c) => acc + c.amount, 0);
+                return { month: monthLabels[monthId], amount: total };
+              });
+            })()}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-200 dark:stroke-zinc-800" />
+              <XAxis dataKey="month" className="text-xs" />
+              <YAxis className="text-xs" />
+              <Tooltip formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR')}`} />
+              <Bar dataKey="amount" fill="#10B981" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="card border-2 border-zinc-100 dark:border-zinc-800">
+        <h3 className="text-lg font-semibold mb-4">Histórico de Apostas (Investimentos)</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 dark:border-zinc-800">
-                <th className="pb-3">Participante</th>
-                <th className="pb-3">Mês</th>
-                <th className="pb-3">Valor</th>
-                <th className="pb-3">Data</th>
+              <tr className="border-b border-zinc-100 dark:border-zinc-800">
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Data</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Concurso</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Descrição</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-400 text-right">Valor</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-50 dark:divide-zinc-900">
-              {contributions.slice(0, 20).map(c => (
-                <tr key={c.id} className="text-sm">
-                  <td className="py-3 font-medium">{c.participant_name}</td>
-                  <td className="py-3 text-zinc-500">{c.month}</td>
-                  <td className="py-3 font-semibold">R$ {c.amount.toLocaleString('pt-BR')}</td>
-                  <td className="py-3 text-zinc-400">{new Date(c.paid_at).toLocaleDateString('pt-BR')}</td>
+              {bets.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-zinc-500 italic">Nenhuma aposta registrada.</td>
                 </tr>
-              ))}
+              ) : (
+                bets.map(b => {
+                  const draw = draws.find(d => d.id === b.draw_id);
+                  return (
+                    <tr key={b.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50">
+                      <td className="px-4 py-3 text-sm">{new Date(b.date).toLocaleDateString('pt-BR')}</td>
+                      <td className="px-4 py-3 text-sm font-medium">{draw?.name || '—'}</td>
+                      <td className="px-4 py-3 text-sm text-zinc-500">{b.description}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-rose-500 text-right">R$ {b.amount.toLocaleString('pt-BR')}</td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -1100,6 +1257,7 @@ export default function App() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [draws, setDraws] = useState<Draw[]>([]);
+  const [bets, setBets] = useState<Bet[]>([]);
 
   const fetchData = async () => {
     try {
@@ -1131,14 +1289,23 @@ export default function App() {
       if (dError) throw dError;
       setDraws(dData || []);
 
-      // 4. Fetch Bets for stats
+      // 4. Fetch Bets
       const { data: bData, error: bError } = await supabase
         .from('bets')
-        .select('amount');
+        .select('*')
+        .order('date', { ascending: false });
       if (bError) throw bError;
+      setBets(bData || []);
 
       // 5. Calculate Stats
-      const totalCollected = cData?.reduce((acc: number, c: any) => acc + Number(c.amount), 0) || 0;
+      const currentYear = new Date().getFullYear().toString();
+      // Robust filter for excluding January (month 01)
+      const totalCollected = cData?.filter((c: any) => {
+        if (!c.month) return false;
+        const [year, month] = c.month.split('-');
+        return year === currentYear && month !== '01';
+      }).reduce((acc: number, c: any) => acc + Number(c.amount), 0) || 0;
+      
       const totalInvested = bData?.reduce((acc: number, b: any) => acc + Number(b.amount), 0) || 0;
       const activeParticipants = pData?.filter((p: any) => p.active).length || 0;
       const nextDraw = dData?.find((d: any) => !d.realized) || null;
@@ -1382,8 +1549,8 @@ export default function App() {
                 {view === 'dashboard' && <Dashboard stats={stats} draws={draws} />}
                 {view === 'participants' && <ParticipantsList participants={participants} contributions={contributions} onUpdate={fetchData} />}
                 {view === 'contributions' && <ContributionsList participants={participants} contributions={contributions} onUpdate={fetchData} />}
-                {view === 'draws' && <DrawsList draws={draws} stats={stats} onUpdate={fetchData} />}
-                {view === 'reports' && <ReportsList stats={stats} draws={draws} contributions={contributions} />}
+                {view === 'draws' && <DrawsList draws={draws} stats={stats} bets={bets} onUpdate={fetchData} />}
+                {view === 'reports' && <ReportsList stats={stats} draws={draws} contributions={contributions} bets={bets} />}
                 {view === 'games' && <GamesList />}
               </motion.div>
             </AnimatePresence>
