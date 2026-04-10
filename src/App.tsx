@@ -548,6 +548,30 @@ const CircularProgress = ({ percentage, colorClass }: { percentage: number, colo
   );
 };
 
+const CurrencyInput = ({ value, onChange, className }: { value: number, onChange: (val: number) => void, className?: string }) => {
+  const formatValue = (val: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(val / 100);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value.replace(/\D/g, '');
+    const numericValue = rawValue === '' ? 0 : parseInt(rawValue, 10);
+    onChange(numericValue);
+  };
+
+  return (
+    <input 
+      type="text" 
+      className={className}
+      value={formatValue(value)}
+      onChange={handleChange}
+    />
+  );
+};
+
 const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: DashboardStats | null, bets: Bet[], onUpdate: () => void }) => {
   const [editing, setEditing] = useState<Draw | null>(null);
   const [newBet, setNewBet] = useState({ description: '', amount: 0 });
@@ -792,20 +816,18 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Prêmio Estimado</label>
-                      <input 
-                        type="number" 
+                      <CurrencyInput 
                         className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
                         value={editing.estimated_prize || 0}
-                        onChange={(e) => setEditing({...editing, estimated_prize: Number(e.target.value)})}
+                        onChange={(val) => setEditing({...editing, estimated_prize: val / 100})}
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Prêmio Recebido</label>
-                      <input 
-                        type="number" 
+                      <CurrencyInput 
                         className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
-                        value={editing.prize}
-                        onChange={(e) => setEditing({...editing, prize: Number(e.target.value)})}
+                        value={editing.prize || 0}
+                        onChange={(val) => setEditing({...editing, prize: val / 100})}
                       />
                     </div>
                   </div>
@@ -821,11 +843,10 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Valor Apostado (R$)</label>
-                    <input 
-                      type="number" 
+                    <CurrencyInput 
                       className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
                       value={editing.bet_amount || 0}
-                      onChange={(e) => setEditing({...editing, bet_amount: Number(e.target.value)})}
+                      onChange={(val) => setEditing({...editing, bet_amount: val / 100})}
                     />
                   </div>
                 </div>
@@ -851,12 +872,10 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
                         onChange={(e) => setNewBet({...newBet, description: e.target.value})}
                       />
                       <div className="flex gap-2">
-                        <input 
-                          type="number" 
-                          placeholder="Valor R$"
+                        <CurrencyInput 
                           className="flex-1 bg-white dark:bg-zinc-900 border-none rounded-lg px-3 py-2 text-sm"
-                          value={newBet.amount || ''}
-                          onChange={(e) => setNewBet({...newBet, amount: Number(e.target.value)})}
+                          value={newBet.amount || 0}
+                          onChange={(val) => setNewBet({...newBet, amount: val / 100})}
                         />
                         <button onClick={handleAddBet} className="btn-primary px-4 py-2 text-xs">OK</button>
                       </div>
