@@ -568,6 +568,7 @@ const CurrencyInput = ({ value, onChange, className }: { value: number, onChange
       className={className}
       value={formatValue(value)}
       onChange={handleChange}
+      inputMode="numeric"
     />
   );
 };
@@ -781,8 +782,17 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
 
       <AnimatePresence>
         {editing && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="card w-full max-w-2xl space-y-6 my-8">
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto"
+            onClick={() => setEditing(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.9, opacity: 0 }} 
+              className="card w-full max-w-2xl space-y-6 my-8"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold">{editing.name}</h3>
                 <button onClick={() => setEditing(null)}><X size={20} /></button>
