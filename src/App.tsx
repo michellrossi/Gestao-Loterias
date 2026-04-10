@@ -576,7 +576,8 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
         result: editing.result,
         prize: editing.prize,
         estimated_prize: editing.estimated_prize,
-        allocation_percentage: editing.allocation_percentage
+        allocation_percentage: editing.allocation_percentage,
+        bet_amount: editing.bet_amount
       })
       .eq('id', editing.id);
 
@@ -654,10 +655,11 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {draws.map((d, i) => {
-          const totalPotentialYearly = (stats?.activeParticipants || 0) * 50 * 12;
-          const drawGoal = totalPotentialYearly * (d.allocation_percentage / 100);
+          const totalSpentOnRealized = draws.filter(d => d.realized).reduce((acc, d) => acc + d.bet_amount, 0);
+          const availablePool = (stats?.totalCollected || 0) - totalSpentOnRealized;
+          const drawGoal = availablePool * (d.allocation_percentage / 100);
           const drawCollected = (stats?.totalCollected || 0) * (d.allocation_percentage / 100);
-          const progress = drawGoal > 0 ? (drawCollected / drawGoal) * 100 : 0;
+          const progress = drawGoal > 0 ? (d.bet_amount / drawGoal) * 100 : 0;
           const color = DRAW_COLORS[i % DRAW_COLORS.length];
           const drawBets = bets.filter(b => b.draw_id === d.id);
           const totalSpent = drawBets.reduce((acc, b) => acc + b.amount, 0);
@@ -806,6 +808,15 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
                       className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
                       value={editing.allocation_percentage}
                       onChange={(e) => setEditing({...editing, allocation_percentage: Number(e.target.value)})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Valor Apostado (R$)</label>
+                    <input 
+                      type="number" 
+                      className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
+                      value={editing.bet_amount || 0}
+                      onChange={(e) => setEditing({...editing, bet_amount: Number(e.target.value)})}
                     />
                   </div>
                 </div>

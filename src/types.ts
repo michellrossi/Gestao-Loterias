@@ -24,6 +24,7 @@ export interface Draw {
   prize: number;
   estimated_prize?: number;
   allocation_percentage: number;
+  bet_amount: number;
 }
 
 export interface Bet {

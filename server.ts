@@ -104,7 +104,7 @@ async function startServer() {
 
   app.patch("/api/draws/:id", async (req, res) => {
     const { id } = req.params;
-    const { realized, result, prize, allocation_percentage } = req.body;
+    const { realized, result, prize, allocation_percentage, bet_amount } = req.body;
     
     const { error: updateError } = await supabase
       .from('draws')
@@ -112,7 +112,8 @@ async function startServer() {
         realized: realized ? true : false, 
         result: result || null, 
         prize: prize || 0, 
-        allocation_percentage: allocation_percentage || 0 
+        allocation_percentage: allocation_percentage || 0,
+        bet_amount: bet_amount || 0
       })
       .eq('id', id);
 
