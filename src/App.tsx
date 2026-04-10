@@ -655,14 +655,23 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {draws.map((d, i) => {
-          const totalSpentOnRealized = draws.filter(d => d.realized).reduce((acc, d) => acc + d.bet_amount, 0);
-          const availablePool = (stats?.totalCollected || 0) - totalSpentOnRealized;
-          const drawGoal = availablePool * (d.allocation_percentage / 100);
-          const drawCollected = (stats?.totalCollected || 0) * (d.allocation_percentage / 100);
-          const progress = drawGoal > 0 ? (d.bet_amount / drawGoal) * 100 : 0;
+          // Lógica de alocação em cascata
+          let accumulatedForThisDraw = 0;
+          let remainingToAllocate = stats?.totalCollected || 0;
+          
+          for (let j = 0; j <= i; j++) {
+            const drawMeta = (draws[j].allocation_percentage / 100) * 14850; // Meta baseada no total de 14850
+            if (j === i) {
+              accumulatedForThisDraw = Math.min(Math.max(remainingToAllocate, 0), drawMeta);
+            } else {
+              remainingToAllocate -= drawMeta;
+            }
+          }
+
+          const drawMeta = (d.allocation_percentage / 100) * 14850;
+          const progress = drawMeta > 0 ? (accumulatedForThisDraw / drawMeta) * 100 : 0;
           const color = DRAW_COLORS[i % DRAW_COLORS.length];
-          const drawBets = bets.filter(b => b.draw_id === d.id);
-          const totalSpent = drawBets.reduce((acc, b) => acc + b.amount, 0);
+          const totalSpent = d.bet_amount;
 
           return (
             <div key={d.id} className={`card relative overflow-hidden group border-2 ${color.lightBorder}`}>
@@ -705,8 +714,8 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
                   <div className="flex justify-between items-end">
                     <span className="text-sm text-zinc-500 font-medium">Meta de Arrecadação</span>
                     <div className="text-right">
-                      <span className="text-sm font-semibold">R$ {Math.round(drawCollected).toLocaleString('pt-BR')}</span>
-                      <span className="text-sm text-zinc-400 font-medium"> / R$ {Math.round(drawGoal).toLocaleString('pt-BR')}</span>
+                      <span className="text-sm font-semibold">R$ {Math.round(accumulatedForThisDraw).toLocaleString('pt-BR')}</span>
+                      <span className="text-sm text-zinc-400 font-medium"> / R$ {Math.round(drawMeta).toLocaleString('pt-BR')}</span>
                     </div>
                   </div>
                   <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
