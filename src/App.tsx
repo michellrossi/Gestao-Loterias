@@ -564,13 +564,13 @@ const CurrencyInput = ({ value, onChange, className }: { value: number, onChange
       currency: 'BRL',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(val); // Corrigido: Não divide por 100 na exibição
+    }).format(val); 
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value.replace(/\D/g, '');
     const numericValue = rawValue === '' ? 0 : parseInt(rawValue, 10);
-    onChange(numericValue / 100); // Corrigido: Divide por 100 ao enviar o valor para o estado
+    onChange(numericValue / 100);
   };
 
   return (
@@ -616,7 +616,6 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
       return;
     }
 
-    // Logic for redistribution if realized (only if it was NOT realized before)
     const originalDraw = draws.find(d => d.id === editing.id);
     if (editing.realized === 1 && originalDraw?.realized === 0) {
       const { data: remainingDraws } = await supabase
@@ -832,7 +831,7 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
                       <CurrencyInput 
                         className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
                         value={editing.estimated_prize || 0}
-                        onChange={(val) => setEditing({...editing, estimated_prize: val})} // Corrigido
+                        onChange={(val) => setEditing({...editing, estimated_prize: val})}
                       />
                     </div>
                     <div>
@@ -840,7 +839,7 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
                       <CurrencyInput 
                         className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
                         value={editing.prize || 0}
-                        onChange={(val) => setEditing({...editing, prize: val})} // Corrigido
+                        onChange={(val) => setEditing({...editing, prize: val})}
                       />
                     </div>
                   </div>
@@ -859,7 +858,7 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
                     <CurrencyInput 
                       className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
                       value={editing.bet_amount || 0}
-                      onChange={(val) => setEditing({...editing, bet_amount: val})} // Corrigido
+                      onChange={(val) => setEditing({...editing, bet_amount: val})}
                     />
                   </div>
                 </div>
@@ -888,7 +887,7 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
                         <CurrencyInput 
                           className="flex-1 bg-white dark:bg-zinc-900 border-none rounded-lg px-3 py-2 text-sm"
                           value={newBet.amount || 0}
-                          onChange={(val) => setNewBet({...newBet, amount: val})} // Corrigido
+                          onChange={(val) => setNewBet({...newBet, amount: val})}
                         />
                         <button onClick={handleAddBet} className="btn-primary px-4 py-2 text-xs">OK</button>
                       </div>
@@ -1345,6 +1344,7 @@ export default function App() {
       if (bError) throw bError;
       setBets(bData || []);
 
+      // 5. Cálculo das Estatísticas com a Nova Lógica de Negócio
       const currentYear = new Date().getFullYear().toString();
       const totalCollected = cData?.filter((c: any) => {
         if (!c.month) return false;
@@ -1352,14 +1352,17 @@ export default function App() {
         return year === currentYear && month !== '01';
       }).reduce((acc: number, c: any) => acc + Number(c.amount), 0) || 0;
       
-      const totalInvested = bData?.reduce((acc: number, b: any) => acc + Number(b.amount), 0) || 0;
+      // NOVA REGRA: Somar bet_amount apenas de concursos marcados como REALIZADOS
+      const totalInvested = dData?.filter((d: any) => d.realized)
+        .reduce((acc: number, d: any) => acc + Number(d.bet_amount || 0), 0) || 0;
+        
       const activeParticipants = pData?.filter((p: any) => p.active).length || 0;
       const nextDraw = dData?.find((d: any) => !d.realized) || null;
 
       setStats({
         totalCollected,
         totalInvested,
-        cashAvailable: totalCollected - totalInvested,
+        cashAvailable: totalCollected - totalInvested, // Subtrai o investido do saldo automaticamente
         activeParticipants,
         nextDraw
       });
