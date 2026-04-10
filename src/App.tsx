@@ -80,9 +80,9 @@ const Dashboard = ({ stats, draws }: { stats: DashboardStats | null, draws: Draw
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Arrecadado" value={`R$ ${stats.totalCollected.toLocaleString('pt-BR')}`} icon={CircleDollarSign} colorClass="border-amber-500" />
-        <StatCard label="Total Investido" value={`R$ ${stats.totalInvested.toLocaleString('pt-BR')}`} icon={TrendingUp} colorClass="border-emerald-500" />
-        <StatCard label="Saldo em Caixa" value={`R$ ${stats.cashAvailable.toLocaleString('pt-BR')}`} icon={CircleDollarSign} colorClass="border-blue-500" />
+        <StatCard label="Total Arrecadado" value={formatCurrency(stats.totalCollected)} icon={CircleDollarSign} colorClass="border-amber-500" />
+        <StatCard label="Total Investido" value={formatCurrency(stats.totalInvested)} icon={TrendingUp} colorClass="border-emerald-500" />
+        <StatCard label="Saldo em Caixa" value={formatCurrency(stats.cashAvailable)} icon={CircleDollarSign} colorClass="border-blue-500" />
         <StatCard label="Participantes Ativos" value={stats.activeParticipants.toString()} icon={Users} colorClass="border-violet-500" />
       </div>
 
@@ -548,11 +548,22 @@ const CircularProgress = ({ percentage, colorClass }: { percentage: number, colo
   );
 };
 
+const formatCurrency = (val: number) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(val);
+};
+
 const CurrencyInput = ({ value, onChange, className }: { value: number, onChange: (val: number) => void, className?: string }) => {
   const formatValue = (val: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(val / 100);
   };
 
@@ -568,7 +579,7 @@ const CurrencyInput = ({ value, onChange, className }: { value: number, onChange
       className={className}
       value={formatValue(value)}
       onChange={handleChange}
-      inputMode="numeric"
+      inputMode="decimal"
     />
   );
 };
@@ -585,11 +596,14 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
     { text: 'text-violet-500', bg: 'bg-violet-500', border: 'border-violet-500', lightBorder: 'border-violet-500/50' }
   ];
 
-  const formatPrize = (value: number) => {
-    if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`;
-    if (value >= 1000000) return `${(value / 1000000).toFixed(0)}M`;
-    return value.toLocaleString('pt-BR');
-  };
+  const formatCurrency = (val: number) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(val);
+};
 
   const handleSave = async () => {
     if (!editing) return;
@@ -723,11 +737,10 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
                     {d.realized ? 'Prêmio Recebido' : 'Prêmio Estimado'}
                   </span>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-xl font-semibold">R$</span>
                     <span className="text-3xl font-bold tracking-tight">
                       {d.realized 
-                        ? formatPrize(d.prize)
-                        : (d.estimated_prize ? formatPrize(d.estimated_prize) : '—')
+                        ? formatCurrency(d.prize)
+                        : (d.estimated_prize ? formatCurrency(d.estimated_prize) : '—')
                       }
                     </span>
                   </div>
@@ -739,8 +752,8 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
                   <div className="flex justify-between items-end">
                     <span className="text-sm text-zinc-500 font-medium">Meta de Arrecadação</span>
                     <div className="text-right">
-                      <span className="text-sm font-semibold">R$ {Math.round(accumulatedForThisDraw).toLocaleString('pt-BR')}</span>
-                      <span className="text-sm text-zinc-400 font-medium"> / R$ {Math.round(drawMeta).toLocaleString('pt-BR')}</span>
+                      <span className="text-sm font-semibold">{formatCurrency(accumulatedForThisDraw)}</span>
+                      <span className="text-sm text-zinc-400 font-medium"> / {formatCurrency(drawMeta)}</span>
                     </div>
                   </div>
                   <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
@@ -758,7 +771,7 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
                     <History size={14} className="text-zinc-400" />
                     <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Total Investido</span>
                   </div>
-                  <span className="text-sm font-bold text-rose-500">R$ {totalSpent.toLocaleString('pt-BR')}</span>
+                  <span className="text-sm font-bold text-rose-500">{formatCurrency(totalSpent)}</span>
                 </div>
               </div>
 
@@ -993,7 +1006,7 @@ const ReportsList = ({ stats, draws, contributions, bets }: { stats: DashboardSt
               <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-200 dark:stroke-zinc-800" />
               <XAxis dataKey="month" className="text-xs" />
               <YAxis className="text-xs" />
-              <Tooltip formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR')}`} />
+              <Tooltip formatter={(value: number) => formatCurrency(value)} />
               <Bar dataKey="amount" fill="#10B981" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -1025,7 +1038,7 @@ const ReportsList = ({ stats, draws, contributions, bets }: { stats: DashboardSt
                       <td className="px-4 py-3 text-sm">{new Date(b.date).toLocaleDateString('pt-BR')}</td>
                       <td className="px-4 py-3 text-sm font-medium">{draw?.name || '—'}</td>
                       <td className="px-4 py-3 text-sm text-zinc-500">{b.description}</td>
-                      <td className="px-4 py-3 text-sm font-bold text-rose-500 text-right">R$ {b.amount.toLocaleString('pt-BR')}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-rose-500 text-right">{formatCurrency(b.amount)}</td>
                     </tr>
                   );
                 })
