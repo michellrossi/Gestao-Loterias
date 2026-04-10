@@ -564,13 +564,13 @@ const CurrencyInput = ({ value, onChange, className }: { value: number, onChange
       currency: 'BRL',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(val / 100);
+    }).format(val); // Corrigido: Não divide por 100 na exibição
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value.replace(/\D/g, '');
     const numericValue = rawValue === '' ? 0 : parseInt(rawValue, 10);
-    onChange(numericValue);
+    onChange(numericValue / 100); // Corrigido: Divide por 100 ao enviar o valor para o estado
   };
 
   return (
@@ -595,15 +595,6 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
     { text: 'text-blue-500', bg: 'bg-blue-500', border: 'border-blue-500', lightBorder: 'border-blue-500/50' },
     { text: 'text-violet-500', bg: 'bg-violet-500', border: 'border-violet-500', lightBorder: 'border-violet-500/50' }
   ];
-
-  const formatCurrency = (val: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(val);
-};
 
   const handleSave = async () => {
     if (!editing) return;
@@ -694,12 +685,11 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {draws.map((d, i) => {
-          // Lógica de alocação em cascata
           let accumulatedForThisDraw = 0;
           let remainingToAllocate = stats?.totalCollected || 0;
           
           for (let j = 0; j <= i; j++) {
-            const drawMeta = (draws[j].allocation_percentage / 100) * 14850; // Meta baseada no total de 14850
+            const drawMeta = (draws[j].allocation_percentage / 100) * 14850;
             if (j === i) {
               accumulatedForThisDraw = Math.min(Math.max(remainingToAllocate, 0), drawMeta);
             } else {
@@ -842,7 +832,7 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
                       <CurrencyInput 
                         className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
                         value={editing.estimated_prize || 0}
-                        onChange={(val) => setEditing({...editing, estimated_prize: val / 100})}
+                        onChange={(val) => setEditing({...editing, estimated_prize: val})} // Corrigido
                       />
                     </div>
                     <div>
@@ -850,7 +840,7 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
                       <CurrencyInput 
                         className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
                         value={editing.prize || 0}
-                        onChange={(val) => setEditing({...editing, prize: val / 100})}
+                        onChange={(val) => setEditing({...editing, prize: val})} // Corrigido
                       />
                     </div>
                   </div>
@@ -869,7 +859,7 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
                     <CurrencyInput 
                       className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2"
                       value={editing.bet_amount || 0}
-                      onChange={(val) => setEditing({...editing, bet_amount: val / 100})}
+                      onChange={(val) => setEditing({...editing, bet_amount: val})} // Corrigido
                     />
                   </div>
                 </div>
@@ -898,7 +888,7 @@ const DrawsList = ({ draws, stats, bets, onUpdate }: { draws: Draw[], stats: Das
                         <CurrencyInput 
                           className="flex-1 bg-white dark:bg-zinc-900 border-none rounded-lg px-3 py-2 text-sm"
                           value={newBet.amount || 0}
-                          onChange={(val) => setNewBet({...newBet, amount: val / 100})}
+                          onChange={(val) => setNewBet({...newBet, amount: val})} // Corrigido
                         />
                         <button onClick={handleAddBet} className="btn-primary px-4 py-2 text-xs">OK</button>
                       </div>
@@ -1323,7 +1313,6 @@ export default function App() {
 
   const fetchData = async () => {
     try {
-      // 1. Fetch Participants
       const { data: pData, error: pError } = await supabase
         .from('participants')
         .select('*')
@@ -1331,7 +1320,6 @@ export default function App() {
       if (pError) throw pError;
       setParticipants(pData || []);
 
-      // 2. Fetch Contributions with Participant names
       const { data: cData, error: cError } = await supabase
         .from('contributions')
         .select('*, participants(name)')
@@ -1343,7 +1331,6 @@ export default function App() {
         participant_name: c.participants?.name
       })) || []);
 
-      // 3. Fetch Draws
       const { data: dData, error: dError } = await supabase
         .from('draws')
         .select('*')
@@ -1351,7 +1338,6 @@ export default function App() {
       if (dError) throw dError;
       setDraws(dData || []);
 
-      // 4. Fetch Bets
       const { data: bData, error: bError } = await supabase
         .from('bets')
         .select('*')
@@ -1359,9 +1345,7 @@ export default function App() {
       if (bError) throw bError;
       setBets(bData || []);
 
-      // 5. Calculate Stats
       const currentYear = new Date().getFullYear().toString();
-      // Robust filter for excluding January (month 01)
       const totalCollected = cData?.filter((c: any) => {
         if (!c.month) return false;
         const [year, month] = c.month.split('-');
@@ -1386,13 +1370,11 @@ export default function App() {
   };
 
   useEffect(() => {
-    // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
@@ -1484,7 +1466,6 @@ export default function App() {
     <div className={darkMode ? 'dark' : ''}>
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 flex">
         
-        {/* Sidebar */}
         <aside className="hidden lg:flex flex-col w-64 border-r border-zinc-200 dark:border-zinc-800 p-6 bg-white dark:bg-zinc-900">
           <div className="flex items-center gap-3 mb-12">
             <div className="w-10 h-10 bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 rounded-xl flex items-center justify-center">
@@ -1520,11 +1501,9 @@ export default function App() {
           </div>
         </aside>
 
-        {/* Main Content */}
         <main className="flex-1 p-4 lg:p-12 overflow-y-auto">
           <div className="max-w-6xl mx-auto">
             
-            {/* Mobile Header */}
             <header className="lg:hidden flex justify-between items-center mb-8">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 rounded-lg flex items-center justify-center">
@@ -1540,7 +1519,6 @@ export default function App() {
               </button>
             </header>
 
-            {/* Mobile Menu Overlay */}
             <AnimatePresence>
               {isMobileMenuOpen && (
                 <div className="fixed inset-0 z-[60] lg:hidden">
@@ -1599,7 +1577,6 @@ export default function App() {
               )}
             </AnimatePresence>
 
-            {/* Page Content */}
             <AnimatePresence mode="wait">
               <motion.div
                 key={view}
